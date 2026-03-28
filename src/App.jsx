@@ -353,7 +353,7 @@ const CV = {
 // DEV TOOL
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DevTool({ deck, setDeck, setQuestions, totalCount, lightMode }) {
+function DevTool({ deck, setDeck, setQuestions, setShowResults, totalCount, lightMode }) {
   const [show, setShow] = useState(false);
   const [count, setCount] = useState(10);
   const [msg, setMsg] = useState("");
@@ -362,6 +362,7 @@ function DevTool({ deck, setDeck, setQuestions, totalCount, lightMode }) {
   function masterRandom() {
     const allActive = [...deck.tf, ...deck.mc, ...deck.calc, ...deck.def, ...deck.special]
       .filter(d => !deck.masteredIds.includes(d.id));
+    if (allActive.length === 0) { setMsg("No active questions to master."); setTimeout(() => setMsg(""), 3000); return; }
     const n = Math.min(count, allActive.length);
     const toMaster = allActive.sort(() => Math.random() - 0.5).slice(0, n);
     const newMasteredIds = [...deck.masteredIds, ...toMaster.map(d => d.id)];
@@ -375,8 +376,13 @@ function DevTool({ deck, setDeck, setQuestions, totalCount, lightMode }) {
       masteredIds: newMasteredIds,
     };
     setDeck(newDeck);
-    setQuestions(buildRound(newDeck));
-    setMsg(`Mastered ${n} questions. Round rebuilt.`);
+    const allMastered = newDeck.tf.length === 0 && newDeck.mc.length === 0 && newDeck.calc.length === 0 && newDeck.def.length === 0 && newDeck.special.length === 0;
+    if (allMastered) {
+      setShowResults(true);
+    } else {
+      setQuestions(buildRound(newDeck));
+    }
+    setMsg(`Mastered ${n} questions.${allMastered ? " All done!" : " Round rebuilt."}`);
     setTimeout(() => setMsg(""), 3000);
   }
 
@@ -453,6 +459,11 @@ export default function StudyEngine() {
   const masteryPct = Math.round((masteredCount / totalCount) * 100);
   const allMastered = deck.tf.length === 0 && deck.mc.length === 0 && deck.calc.length === 0 && deck.def.length === 0 && deck.special.length === 0;
 
+  // If no current question and not in results/bank, trigger reset via effect
+  useEffect(() => {
+    if (!q && !showResults && !showBank) resetAll();
+  }, [q, showResults, showBank]);
+
   function toggleLight() {
     setLightMode(prev => {
       const next = !prev;
@@ -494,6 +505,7 @@ export default function StudyEngine() {
   function startNext() {
     if (allMastered) return;
     const nextQs = buildRound(deck);
+    if (!nextQs || nextQs.length === 0) { resetAll(); return; }
     setQuestions(nextQs);
     setCurrent(0); setAnswers({}); setCalcInput(""); setOrderSelected([]);
     setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
@@ -534,7 +546,7 @@ export default function StudyEngine() {
     dot:      (sel,cor,wrg) => ({ width:13, height:13, borderRadius:"50%", border:`2px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.muted}`, background:cor?T.accent:wrg?T.wrong:sel?T.neutral:"transparent", flexShrink:0, marginTop:2, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, color:"#000" }),
     tfRow:    { display:"flex", gap:8 },
     tfBtn:    (sel,isT) => {
-      const cor=showResults&&isT===q.answer, wrg=showResults&&sel&&isT!==q.answer;
+      const cor=showResults&&q&&isT===q.answer, wrg=showResults&&q&&sel&&isT!==q.answer;
       return { flex:1, padding:"12px", borderRadius:7, border:`1px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.border}`, background:cor?"rgba(63,185,80,0.1)":wrg?"rgba(248,81,73,0.1)":sel?(lm?"rgba(7,112,209,0.08)":"rgba(88,166,255,0.1)"):"transparent", color:cor?T.accent:wrg?T.wrong:sel?T.neutral:T.text, cursor:showResults?"default":"pointer", fontWeight:700, fontSize:14, textAlign:"center", transition:"all 0.12s" };
     },
     calcIn:   { width:"100%", padding:"10px 13px", background:lm?"#f9f9f9":"rgba(88,166,255,0.05)", border:`1px solid ${T.border}`, borderRadius:7, color:T.text, fontSize:17, fontFamily:"monospace", outline:"none", boxSizing:"border-box" },
@@ -598,7 +610,7 @@ export default function StudyEngine() {
   }
 
   // ── WIN SCREEN ──────────────────────────────────────────────────────────────
-  if (showResults && allMastered) {
+  if (showResults && allMastered && !showBank) {
     const missedQs = Object.entries(deck.missedCounts||{}).sort((a,b)=>b[1]-a[1]).map(([id,count])=>({ q:getQById(id), count })).filter(x=>x.q);
     const isPerfect = missedQs.length === 0;
     return (
@@ -628,12 +640,15 @@ export default function StudyEngine() {
           })}
           <button style={{ ...s.btn(true,false), width:"100%", padding:"12px", fontFamily:"monospace" }} onClick={resetAll}>START OVER</button>
         </div>
+        <div style={{ textAlign:"center", marginTop:8 }}>
+          <span style={s.resetLink} onClick={() => setShowBank(true)}>question bank</span>
+        </div>
       </div></div>
     );
   }
 
   // ── RESULTS VIEW ────────────────────────────────────────────────────────────
-  if (showResults) {
+  if (showResults && !showBank) {
     function copyWrong() {
       const text = wrongQs.map((q,i) => {
         const { ua, ca } = getWrongAnswerDisplay(q, answers[q.id]);
@@ -742,12 +757,24 @@ export default function StudyEngine() {
           );
         })}
         <button style={{ width:"100%", padding:"11px", marginTop:8, borderRadius:7, border:`1px solid ${T.border}`, background:"transparent", color:T.text, cursor:"pointer", fontSize:13 }} onClick={() => { setShowBank(false); setQuestions(buildRound(deck)); }}>Back to quiz</button>
-        <DevTool deck={deck} setDeck={setDeck} setQuestions={setQuestions} totalCount={totalCount} lightMode={lightMode} />
+        <DevTool deck={deck} setDeck={setDeck} setQuestions={setQuestions} setShowResults={setShowResults} totalCount={totalCount} lightMode={lightMode} />
       </div></div>
     );
   }
 
   // ── QUIZ VIEW ───────────────────────────────────────────────────────────────
+  // Guard: if no questions could be built (e.g. after bulk-mastering in dev tool)
+  if (!q || questions.length === 0) {
+    return (
+      <div style={s.app}><div style={s.wrap}>
+        <div style={{ textAlign:"center", color:T.muted, fontFamily:"monospace", fontSize:13 }}>
+          <div style={{ marginBottom:12 }}>No questions available.</div>
+          <button style={s.btn(true, false)} onClick={resetAll}>Reset Progress</button>
+        </div>
+      </div></div>
+    );
+  }
+
   return (
     <div style={s.app}><div style={s.wrap}>
       <div style={s.logo}>
@@ -802,7 +829,7 @@ export default function StudyEngine() {
           <div>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
               <div style={s.orderLabel}>Your order ({orderSelected.length}/{q.correctOrder.length}):</div>
-              {orderSelected.length>0&&!showResults&&<span style={{ ...s.resetLink, fontSize:11 }} onClick={clearOrdering}>clear</span>}
+              {orderSelected.length>0&&!showResults&&<button style={{ padding:"4px 12px", borderRadius:6, border:`1px solid ${T.border}`, background:"transparent", color:T.muted, cursor:"pointer", fontSize:12, fontFamily:"monospace" }} onClick={clearOrdering}>clear</button>}
             </div>
             <div style={s.orderChips}>
               {orderSelected.length===0
