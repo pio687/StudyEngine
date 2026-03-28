@@ -448,6 +448,14 @@ export default function StudyEngine() {
     try { return localStorage.getItem("quiz_lightmode") === "true"; } catch { return false; }
   });
 
+  const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 480);
+
+  useEffect(() => {
+    function handleResize() { setMobile(window.innerWidth <= 480); }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => { saveProgress(deck); }, [deck]);
 
   const T  = lightMode ? CV : C;
@@ -529,30 +537,30 @@ export default function StudyEngine() {
 
   // ── STYLES ──────────────────────────────────────────────────────────────────
   const s = {
-    app:      { minHeight:"100vh", background:T.bg, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:"20px 16px" },
-    wrap:     { width:"100%", maxWidth:620 },
+    app:      { minHeight:"100vh", background:T.bg, display:"flex", alignItems:mobile?"flex-start":"center", justifyContent:"center", fontFamily:"'Segoe UI',system-ui,sans-serif", padding:mobile?"12px 10px":"20px 16px" },
+    wrap:     { width:"100%", maxWidth:mobile?"100%":620 },
     logo:     { textAlign:"center", marginBottom:14 },
     logoTop:  { fontSize:10, letterSpacing:"0.2em", textTransform:"uppercase", color:T.accent, fontFamily:"monospace", marginBottom:2 },
-    logoTitle:{ fontSize:19, fontWeight:700, color:T.text, marginBottom:10 },
-    card:     { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:"22px 22px 18px", marginBottom:12 },
+    logoTitle:{ fontSize:mobile?22:19, fontWeight:700, color:T.text, marginBottom:10 },
+    card:     { background:T.card, border:`1px solid ${T.border}`, borderRadius:10, padding:mobile?"16px 14px 14px":"22px 22px 18px", marginBottom:12 },
     tag:      { display:"inline-block", fontSize:10, letterSpacing:"0.12em", textTransform:"uppercase", color:T.neutral, background:lm?"rgba(7,112,209,0.08)":"rgba(88,166,255,0.1)", border:`1px solid ${lm?"rgba(7,112,209,0.2)":"rgba(88,166,255,0.25)"}`, borderRadius:4, padding:"2px 7px", marginBottom:10, fontFamily:"monospace" },
-    qText:    { fontSize:15, color:T.text, lineHeight:1.65, marginBottom:16, whiteSpace:"pre-line" },
+    qText:    { fontSize:mobile?17:15, color:T.text, lineHeight:1.65, marginBottom:16, whiteSpace:"pre-line" },
     progRow:  { display:"flex", gap:8, alignItems:"center", marginBottom:14 },
     progBar:  { flex:1, height:3, background:T.border, borderRadius:2, overflow:"hidden" },
     progFill: (p) => ({ height:"100%", width:`${p}%`, background:T.accent, borderRadius:2, transition:"width 0.3s" }),
     progTxt:  { fontSize:11, color:T.muted, fontFamily:"monospace", whiteSpace:"nowrap" },
-    opts:     { display:"flex", flexDirection:"column", gap:7 },
-    opt:      (sel,cor,wrg) => ({ padding:"11px 14px", borderRadius:8, border:`1px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.border}`, background:cor?"rgba(63,185,80,0.07)":wrg?"rgba(248,81,73,0.07)":sel?(lm?"rgba(7,112,209,0.07)":"rgba(88,166,255,0.07)"):"transparent", color:cor?T.accent:wrg?T.wrong:sel?T.neutral:T.text, cursor:showResults?"default":"pointer", fontSize:14, display:"flex", alignItems:"flex-start", gap:9, transition:"all 0.12s", textAlign:"left", width:"100%", boxSizing:"border-box" }),
-    dot:      (sel,cor,wrg) => ({ width:13, height:13, borderRadius:"50%", border:`2px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.muted}`, background:cor?T.accent:wrg?T.wrong:sel?T.neutral:"transparent", flexShrink:0, marginTop:2, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, color:"#000" }),
+    opts:     { display:"flex", flexDirection:"column", gap:mobile?10:7 },
+    opt:      (sel,cor,wrg) => ({ padding:mobile?"14px 14px":"11px 14px", borderRadius:8, border:`1px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.border}`, background:cor?"rgba(63,185,80,0.07)":wrg?"rgba(248,81,73,0.07)":sel?(lm?"rgba(7,112,209,0.07)":"rgba(88,166,255,0.07)"):"transparent", color:cor?T.accent:wrg?T.wrong:sel?T.neutral:T.text, cursor:showResults?"default":"pointer", fontSize:mobile?16:14, display:"flex", alignItems:"flex-start", gap:9, transition:"all 0.12s", textAlign:"left", width:"100%", boxSizing:"border-box" }),
+    dot:      (sel,cor,wrg) => ({ width:mobile?16:13, height:mobile?16:13, borderRadius:"50%", border:`2px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.muted}`, background:cor?T.accent:wrg?T.wrong:sel?T.neutral:"transparent", flexShrink:0, marginTop:2, display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, color:"#000" }),
     tfRow:    { display:"flex", gap:8 },
     tfBtn:    (sel,isT) => {
       const cor=showResults&&q&&isT===q.answer, wrg=showResults&&q&&sel&&isT!==q.answer;
-      return { flex:1, padding:"12px", borderRadius:7, border:`1px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.border}`, background:cor?"rgba(63,185,80,0.1)":wrg?"rgba(248,81,73,0.1)":sel?(lm?"rgba(7,112,209,0.08)":"rgba(88,166,255,0.1)"):"transparent", color:cor?T.accent:wrg?T.wrong:sel?T.neutral:T.text, cursor:showResults?"default":"pointer", fontWeight:700, fontSize:14, textAlign:"center", transition:"all 0.12s" };
+      return { flex:1, padding:mobile?"16px":"12px", borderRadius:7, border:`1px solid ${cor?T.accent:wrg?T.wrong:sel?T.neutral:T.border}`, background:cor?"rgba(63,185,80,0.1)":wrg?"rgba(248,81,73,0.1)":sel?(lm?"rgba(7,112,209,0.08)":"rgba(88,166,255,0.1)"):"transparent", color:cor?T.accent:wrg?T.wrong:sel?T.neutral:T.text, cursor:showResults?"default":"pointer", fontWeight:700, fontSize:mobile?17:14, textAlign:"center", transition:"all 0.12s" };
     },
-    calcIn:   { width:"100%", padding:"10px 13px", background:lm?"#f9f9f9":"rgba(88,166,255,0.05)", border:`1px solid ${T.border}`, borderRadius:7, color:T.text, fontSize:17, fontFamily:"monospace", outline:"none", boxSizing:"border-box" },
-    exp:      { marginTop:12, padding:"9px 13px", borderRadius:7, background:T.yellowBg, border:`1px solid ${T.yellowBorder}`, fontSize:13, color:T.yellow, lineHeight:1.6 },
+    calcIn:   { width:"100%", padding:mobile?"14px":"10px 13px", background:lm?"#f9f9f9":"rgba(88,166,255,0.05)", border:`1px solid ${T.border}`, borderRadius:7, color:T.text, fontSize:mobile?18:17, fontFamily:"monospace", outline:"none", boxSizing:"border-box" },
+    exp:      { marginTop:12, padding:"9px 13px", borderRadius:7, background:T.yellowBg, border:`1px solid ${T.yellowBorder}`, fontSize:mobile?14:13, color:T.yellow, lineHeight:1.6 },
     navRow:   { display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 },
-    btn:      (primary,disabled) => ({ padding:"8px 16px", borderRadius:7, border:primary?"none":`1px solid ${T.border}`, background:disabled?(lm?"#f0f0f0":"#21262d"):primary?(lm?CV.btnBg:C.accent):"transparent", color:disabled?T.muted:primary?(lm?CV.btnText:"#0d1117"):T.text, cursor:disabled?"not-allowed":"pointer", fontSize:13, fontWeight:primary?700:400, fontFamily:primary?"monospace":"inherit", transition:"all 0.12s" }),
+    btn:      (primary,disabled) => ({ padding:mobile?"12px 20px":"8px 16px", borderRadius:7, border:primary?"none":`1px solid ${T.border}`, background:disabled?(lm?"#f0f0f0":"#21262d"):primary?(lm?CV.btnBg:C.accent):"transparent", color:disabled?T.muted:primary?(lm?CV.btnText:"#0d1117"):T.text, cursor:disabled?"not-allowed":"pointer", fontSize:mobile?15:13, fontWeight:primary?700:400, fontFamily:primary?"monospace":"inherit", transition:"all 0.12s" }),
     dots:     { display:"flex", gap:5, alignItems:"center" },
     navDot:   (cur,ans) => ({ width:cur?16:7, height:7, borderRadius:4, background:cur?T.accent:ans?T.neutral:T.border, transition:"all 0.18s", cursor:"pointer" }),
     resetLink:{ fontSize:11, color:T.muted, fontFamily:"monospace", cursor:"pointer", textDecoration:"underline" },
@@ -713,6 +721,9 @@ export default function StudyEngine() {
       </div></div>
     );
   }
+
+  // ── RESPONSIVE ──────────────────────────────────────────────────────────────
+  // mobile state is declared above via useState + resize listener
 
   // ── QUESTION BANK ───────────────────────────────────────────────────────────
   if (showBank) {
