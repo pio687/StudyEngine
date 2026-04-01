@@ -2,7 +2,7 @@
 
 This project is a flexible, customizable quiz engine built with React. It's designed to help users study a given topic through various question formats and a spaced-repetition-based learning algorithm. Uses research-backed learning principles from "Make it Stick" to help enhance long-term memory encoding.
 
-Live Demo: https://pio687.github.io/StudyEngine/
+Live Demo: studyengine-dinodemo.netlify.app
 
 ## Features
 
