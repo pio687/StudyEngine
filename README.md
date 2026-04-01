@@ -2,7 +2,7 @@
 
 This project is a flexible, customizable quiz engine built with React. It's designed to help users study a given topic through various question formats and a spaced-repetition-based learning algorithm. Uses research-backed learning principles from "Make it Stick" to help enhance long-term memory encoding.
 
-Live Demo: studyengine-dinodemo.netlify.app
+Live Demo: https://studyengine-dinodemo.netlify.app/
 
 ## Features
 
@@ -54,7 +54,7 @@ config:
 # The list of all questions for the quiz.
 questions:
   # --- TRUE / FALSE ---
-  - id: "tf1"
+    - id: "tf1"
     topic: "Topic Name"
     type: "tf"
     question: "This is a true or false statement."
@@ -62,26 +62,60 @@ questions:
     explanation: "A brief explanation of why the answer is correct."
 
   # --- MULTIPLE CHOICE ---
-  - id: "mc1"
+    - id: "mc1"
     topic: "Topic Name"
     type: "mc"
     question: "This is a multiple choice question."
     options:
-      - "Wrong Answer A"
-      - "Correct Answer"
-      - "Wrong Answer B"
-      - "Wrong Answer C"
+            - "Wrong Answer A"
+            - "Correct Answer"
+            - "Wrong Answer B"
+            - "Wrong Answer C"
     answer: 1 # The zero-based index of the correct option.
     explanation: "A brief explanation of why the answer is correct."
 
   # --- FILL IN THE BLANK ---
-  - id: "fitb1"
+    - id: "fitb1"
     topic: "Topic Name"
     type: "fitb"
     question: "The capital of France is ___."
     accepted: ["Paris"] # A list of all acceptable string answers. Case-insensitive.
     explanation: "Paris has been the capital of France for centuries."
-```
 
+  # --- DEFINITION ---
+    - id: "def1"
+    topic: "Topic Name"
+    type: "def"
+    question: "The process of creating and storing memories."
+    answer: "Memory Encoding" # The exact string that matches one of the options.
+    options:
+            - "Memory Encoding"
+            - "Cognitive Dissonance"
+            - "Sensory Overload"
+            - "Procedural Knowledge"
+    explanation: "Memory encoding is the initial learning of information."
+
+  # --- ORDERING ---
+    - id: "order1"
+    topic: "Topic Name"
+    type: "ordering"
+    question: "Arrange these historical events in chronological order from earliest to latest."
+    correctOrder: # The exact string of each item, in the correct order.
+            - "Event A" # Earliest
+            - "Event B"
+            - "Event C"
+            - "Event D" # Latest
+    explanation: "A detailed explanation of the correct sequence and historical context."
+
+  # --- MATCHING ---
+    - id: "match1"
+    topic: "Topic Name"
+    type: "match"
+    question: "Match the term to its correct definition."
+    pairs: # A list of term-description pairs.
+            - { term: "Term 1", desc: "Definition for Term 1" }
+            - { term: "Term 2", desc: "Definition for Term 2" }
+            - { term: "Term 3", desc: "Definition for Term 3" }
+    explanation: "A brief explanation of the correct pairings."
 ---
 Now, please generate a question bank for the topic: **[Your Topic Here]**"
