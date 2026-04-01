@@ -1,0 +1,44 @@
+.app {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  padding: 20px 16px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 620px;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.logoTop {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-family: monospace;
+  margin-bottom: 2px;
+}
+
+.logoTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 480px) {
+  .app {
+    align-items: flex-start;
+    padding: 12px 10px;
+  }
+  .wrap { max-width: 100%; }
+  .logoTitle { font-size: 22px; }
+}

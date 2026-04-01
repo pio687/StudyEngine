@@ -1,50 +1,85 @@
-# 🧠 StudyEngine
+# Study Engine v3
 
-A lightweight React study engine built for personal exam prep and knowledge review. Supports multiple question types, spaced repetition, and mastery tracking. Swap in your own question bank to build a new quiz — no changes to the engine required.
-
-**[Live Demo →](https://pio687.github.io/StudyEngine/)**
-
----
+This project is a flexible, customizable quiz engine built with React. It's designed to help users study a given topic through various question formats and a spaced-repetition-based learning algorithm.
 
 ## Features
 
-- **6 question types** — True/False, Multiple Choice, Calculation, Definition Match, Ordering, and Matching
-- **Spaced repetition** — missed questions return sooner; 2 consecutive correct answers retires a question
-- **Mastery tracking** — dual progress bars track questions answered and fully mastered
-- **Dynamic round building** — 10 questions per round, balanced by type and topic, auto-derived from your question bank
-- **Dark / light mode** toggle
-- **Question bank viewer** — browse all questions, answers, and explanations in one screen
-- **Dev tool** — bulk-master random questions for fast testing
+- **Multiple Question Types**: Supports True/False, Multiple Choice, Fill-in-the-Blank, Calculation, Ordering, and Matching questions.
+- **Two Study Modes**:
+    - **Practice Mode**: A casual mode where users can answer questions. Mastery is achieved by answering each question correctly once.
+    - **Study Mode**: A more structured, session-based mode using spaced repetition principles to help with long-term retention.
+- **Spaced Repetition**: Incorrectly answered questions are prioritized and will appear more frequently. Questions are "mastered" and retired from the active pool after being answered correctly in a streak.
+- **Theming**: Includes both light and dark modes.
+- **Developer Tools**: A built-in dev tool allows for quickly mastering questions, advancing sessions, and inspecting the state of the question deck.
+
+## How to Create a New Question Bank
+
+The entire quiz, including its title, description, and all questions, is defined in a single file: `src/questions.yaml`. To create a new quiz, you can either edit this file or replace it with a new one that follows the same format.
+
+### Instructions for AI-Assisted Generation
+
+You can use an AI assistant to generate a new `questions.yaml` file. Provide the AI with the following instructions.
 
 ---
 
-## Using This Template
+**AI Prompt Template:**
 
-1. Clone or fork the repo
-2. Run `npm install`
-3. Replace `src/questions.js` with your own question bank
-4. Update `STORAGE_KEY`, `QUIZ_TITLE`, `QUIZ_SUBJECT`, and `PATCH_NOTES` in `questions.js`
-5. Run `npm run dev` to test locally
-6. Run `npm run build` and deploy
+"You are an expert curriculum designer and a specialist in creating educational content. Your task is to generate a question bank for a study quiz in the YAML format specified below.
 
-The engine (`src/App.jsx`) does not need to be modified between quizzes.
+**Topic:** [Your Topic Here, e.g., "American History: The Civil War"]
+
+**Instructions:**
+1.  Generate a comprehensive set of questions covering the topic.
+2.  Ensure a good mix of question types: `tf` (True/False), `mc` (Multiple Choice), `fitb` (Fill-in-the-Blank), and `def` (Definition).
+3.  All question `id` fields must be unique. Use a convention like `tf1`, `tf2`, `mc1`, `mc2`, etc.
+4.  Every question must have a `topic`, `type`, `question`, and `explanation` field.
+5.  Follow the specific format for each question type precisely.
+6.  Write clear, concise, and unambiguous questions and explanations.
+
+**YAML Format Specification:**
+
+```yaml
+# Top-level configuration for the quiz.
+config:
+  STORAGE_KEY: "unique_quiz_key_v1" # Must be unique for each quiz.
+  DECK_VERSION: 1
+  QUIZ_EMOJI: "🧠"
+  QUIZ_TITLE: "Quiz Title"
+  QUIZ_SUBJECT: "Quiz Subject"
+  DESCRIPTION: |
+    A brief, one-paragraph description of what this quiz covers.
+
+# The list of all questions for the quiz.
+questions:
+  # --- TRUE / FALSE ---
+  - id: "tf1"
+    topic: "Topic Name"
+    type: "tf"
+    question: "This is a true or false statement."
+    answer: true # or false
+    explanation: "A brief explanation of why the answer is correct."
+
+  # --- MULTIPLE CHOICE ---
+  - id: "mc1"
+    topic: "Topic Name"
+    type: "mc"
+    question: "This is a multiple choice question."
+    options:
+      - "Wrong Answer A"
+      - "Correct Answer"
+      - "Wrong Answer B"
+      - "Wrong Answer C"
+    answer: 1 # The zero-based index of the correct option.
+    explanation: "A brief explanation of why the answer is correct."
+
+  # --- FILL IN THE BLANK ---
+  - id: "fitb1"
+    topic: "Topic Name"
+    type: "fitb"
+    question: "The capital of France is ___."
+    accepted: ["Paris"] # A list of all acceptable string answers. Case-insensitive.
+    explanation: "Paris has been the capital of France for centuries."
+```
 
 ---
-
-## Question Types
-
-| Type | Description |
-|------|-------------|
-| `tf` | True / False |
-| `mc` | Multiple choice — tag `topic:"Integrative"` for scenario questions |
-| `calc` | Numeric input with tolerance |
-| `def` | Definition matching (MC-style) |
-| `ordering` | Arrange items in correct sequence |
-| `match` | Match terms to descriptions |
-
-See `questions.js` for full format reference and examples for each type.
-
-
----
-
-*Designed by [pio687](https://github.com/pio687) · Built with [Claude](https://claude.ai) Sonnet 4.6*
+Now, please generate a question bank for the topic: **[Your Topic Here]**"

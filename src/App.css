@@ -1,3 +1,37 @@
+:root {
+  --bg: #0d1117;
+  --card: #161b22;
+  --border: #30363d;
+  --accent: #3fb950;
+  --accent-dim: #238636;
+  --wrong: #f85149;
+  --neutral: #58a6ff;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --yellow: #e3b341;
+  --yellow-bg: rgba(227, 179, 65, 0.07);
+  --yellow-border: rgba(227, 179, 65, 0.25);
+  --btn-bg: #3fb950;
+  --btn-text: #0d1117;
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --border: #e0e0e0;
+  --accent: #0770d1;
+  --accent-dim: #0558a8;
+  --wrong: #cc3333;
+  --neutral: #0770d1;
+  --text: #000000;
+  --muted: #4a4a4a;
+  --yellow: #7a5200;
+  --yellow-bg: rgba(212, 146, 10, 0.08);
+  --yellow-border: rgba(212, 146, 10, 0.3);
+  --btn-bg: #0770d1;
+  --btn-text: #ffffff;
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
