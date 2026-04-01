@@ -11,6 +11,7 @@ export default function SessionEndScreen({
   QUIZ_TITLE,
   renderMasteryBars,
   deck,
+  setDeck,
   weakSpotIds,
   sessionScoreRef,
   questions,
@@ -116,8 +117,11 @@ export default function SessionEndScreen({
         <div style={s.card}>
           {/* Score — use snapshotted values so they survive answers/questions being cleared */}
           {(() => {
-            const snap = sessionScoreRef.current || { score:0, total:0, pct:0 };
-            const sp = snap.pct, ss = snap.score, st = snap.total;
+            const snapQs = sessionScoreRef.current?.questions ?? questions;
+            const snapAns = sessionScoreRef.current?.answers ?? answers;
+            const st = snapQs.length;
+            const ss = snapQs.filter(q => checkCorrect(q, snapAns[q.id])).length;
+            const sp = st > 0 ? Math.round((ss / st) * 100) : 0;
             return (
               <>
                 <div
@@ -205,6 +209,7 @@ export default function SessionEndScreen({
                   const advancedDeck = advanceSession(deckWithResults);
                   saveProgress(advancedDeck);
                   latestDeckRef.current = advancedDeck;
+                  setDeck(advancedDeck);
                   resumeRef.current = true;
                   setCurrentView("MENU");
                 }}

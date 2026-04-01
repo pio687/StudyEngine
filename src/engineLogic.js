@@ -92,27 +92,34 @@ export function shuffleMCOptions(q) {
   return { ...q, options: newOptions, answer: newOptions.indexOf(correctText) };
 }
 
-export function loadProgress() {
+export function loadProgress(mode = "study") {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    let saved;
+    if (mode === "practice") {
+      saved = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_practice`));
+    } else {
+      saved = JSON.parse(localStorage.getItem(`${STORAGE_KEY}_study`)) || JSON.parse(localStorage.getItem(STORAGE_KEY));
+    }
     if (!saved || saved.version !== DECK_VERSION) return null;
     return saved;
   } catch { return null; }
 }
 
 export function saveProgress(s) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...s, version: DECK_VERSION })); } catch {}
+  try { 
+    const mode = (typeof s.mode === "string" && s.mode) ? s.mode : "study";
+    localStorage.setItem(`${STORAGE_KEY}_${mode}`, JSON.stringify({ ...s, version: DECK_VERSION })); 
+  } catch {}
 }
 
 export function initDeck(saved) {
-  if (saved && saved.tf && saved.mc && saved.calc && saved.def && saved.special && saved.fitb) return saved;
-  return {
-    tf:      ALL_TF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    mc:      ALL_MC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    calc:    ALL_CALC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    def:     ALL_DEF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
+  const defaultDeck = {
+    tf: ALL_TF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
+    mc: ALL_MC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
+    calc: ALL_CALC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
+    def: ALL_DEF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
     special: ALL_SPECIAL.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    fitb:    ALL_FITB.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
+    fitb: ALL_FITB.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
     masteredIds: [],
     missedCounts: {},
     correctOnceIds: [],
@@ -121,13 +128,43 @@ export function initDeck(saved) {
     sessionIndex: 0,
     sessionPools: null,
     sessionTopicResults: {},
+    mode: "study", // Default mode
+  };
+
+  if (!saved) {
+    return defaultDeck;
+  };
+
+  // Merge saved properties with defaults, ensuring all arrays are initialized if missing
+  return {
+    ...defaultDeck, // Start with all defaults
+    ...saved,       // Overlay saved values
+    // Ensure arrays are always arrays, even if saved had them as null/undefined
+    tf: saved.tf || defaultDeck.tf,
+    mc: saved.mc || defaultDeck.mc,
+    calc: saved.calc || defaultDeck.calc,
+    def: saved.def || defaultDeck.def,
+    special: saved.special || defaultDeck.special,
+    fitb: saved.fitb || defaultDeck.fitb,
+    masteredIds: saved.masteredIds || defaultDeck.masteredIds,
+    missedCounts: saved.missedCounts || defaultDeck.missedCounts,
+    correctOnceIds: saved.correctOnceIds || defaultDeck.correctOnceIds,
+    hcwIds: saved.hcwIds || defaultDeck.hcwIds,
+    sessionPools: saved.sessionPools || defaultDeck.sessionPools,
+    sessionTopicResults: saved.sessionTopicResults || defaultDeck.sessionTopicResults,
+    mode: (typeof saved.mode === "string" && saved.mode) ? saved.mode : defaultDeck.mode,
   };
 }
 
 export function buildSessionPools() {
+  let oddFlip = false;
   function splitType(arr) {
     const shuffled = shuffle([...arr]);
-    const mid = Math.ceil(shuffled.length / 2);
+    let mid = Math.floor(shuffled.length / 2);
+    if (shuffled.length % 2 !== 0) {
+      mid += oddFlip ? 1 : 0;
+      oddFlip = !oddFlip;
+    }
     return [shuffled.slice(0, mid).map(q => q.id), shuffled.slice(mid).map(q => q.id)];
   }
   const [tf1, tf2]       = splitType(ALL_TF);
@@ -159,16 +196,7 @@ export function advanceSession(deck) {
   }
 
   return {
-    tf:      ALL_TF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    mc:      ALL_MC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    calc:    ALL_CALC.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    def:     ALL_DEF.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    special: ALL_SPECIAL.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    fitb:    ALL_FITB.map((q, i) => ({ id: q.id, pos: i, streak: 0, misses: 0 })),
-    masteredIds:    [],
-    missedCounts:   { ...deck.missedCounts },
-    correctOnceIds: [],
-    hcwIds:         [...deck.hcwIds],
+    ...deck,
     roundIndex:     0,
     sessionIndex:   nextSessionIndex,
     sessionPools,
@@ -232,13 +260,15 @@ export function buildRound(deck, mode) {
 
   let slotType = SLOT_ROTATION[deck.roundIndex % SLOT_ROTATION.length];
 
-  const activeCalc    = deck.calc.filter(d => !deck.masteredIds.includes(d.id) && inPool(d.id));
-  const activeDef     = deck.def.filter(d => !deck.masteredIds.includes(d.id) && inPool(d.id));
-  const activeSpecial = deck.special.filter(d => !deck.masteredIds.includes(d.id) && inPool(d.id));
-  const activeFitb    = deck.fitb.filter(d => !deck.masteredIds.includes(d.id) && inPool(d.id));
-  const activeMC      = deck.mc.filter(d => !deck.masteredIds.includes(d.id) && qMap(d.id)?.topic !== "Integrative" && inPool(d.id));
-  const activeInteg   = deck.mc.filter(d => !deck.masteredIds.includes(d.id) && qMap(d.id)?.topic === "Integrative" && inPool(d.id));
-  const activeTF      = deck.tf.filter(d => !deck.masteredIds.includes(d.id) && inPool(d.id));
+  const excludeIds = mode === "practice" ? (deck.correctOnceIds || []) : deck.masteredIds;
+
+  const activeCalc    = deck.calc.filter(d => !excludeIds.includes(d.id) && inPool(d.id));
+  const activeDef     = deck.def.filter(d => !excludeIds.includes(d.id) && inPool(d.id));
+  const activeSpecial = deck.special.filter(d => !excludeIds.includes(d.id) && inPool(d.id));
+  const activeFitb    = deck.fitb.filter(d => !excludeIds.includes(d.id) && inPool(d.id));
+  const activeMC      = deck.mc.filter(d => !excludeIds.includes(d.id) && qMap(d.id)?.topic !== "Integrative" && inPool(d.id));
+  const activeInteg   = deck.mc.filter(d => !excludeIds.includes(d.id) && qMap(d.id)?.topic === "Integrative" && inPool(d.id));
+  const activeTF      = deck.tf.filter(d => !excludeIds.includes(d.id) && inPool(d.id));
 
   const hasCalc    = activeCalc.length > 0;
   const hasSpecial = activeSpecial.length > 0 || activeDef.length > 0;
@@ -314,11 +344,7 @@ export function buildRound(deck, mode) {
   if (allPicked.length < targetMain) {
     const usedIds = new Set(allPicked.map(d => d.id));
     if (specialQ) usedIds.add(specialQ.id);
-    const backfillMC = activeMC; 
-    const backfillCalc   = slotType === "calc"   ? [] : activeCalc;
-    const backfillFitb   = slotType === "fitb"   ? [] : activeFitb;
-    const backfillDef    = slotType === "special" ? [] : activeDef;
-    const pools = [activeTF, backfillMC, backfillCalc, backfillDef, backfillFitb];
+    const pools = [activeTF, activeMC, activeCalc, activeFitb, activeDef, activeSpecial, activeInteg];
     for (const pool of pools) {
       if (allPicked.length >= targetMain) break;
       const extras = shuffle(pool.filter(d => !usedIds.has(d.id)));
@@ -379,8 +405,12 @@ export function applyResults(deck, questions, answers, confidence, mode) {
     if (correct) {
       pool[idx].streak += 1;
       if (!newDeck.correctOnceIds.includes(q.id)) newDeck.correctOnceIds = [...newDeck.correctOnceIds, q.id];
-      if (mode !== "practice" && pool[idx].streak >= threshold) {
-        newDeck.masteredIds.push(q.id);
+      
+      const thresholdMet = mode === "practice" ? true : pool[idx].streak >= threshold;
+      if (thresholdMet) {
+        if (mode !== "practice" && !newDeck.masteredIds.includes(q.id)) {
+          newDeck.masteredIds.push(q.id);
+        }
         pool.splice(idx, 1);
         return;
       }

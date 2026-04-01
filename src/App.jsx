@@ -89,28 +89,46 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
       ? (deck.sessionPools[String(deck.sessionIndex + 1)] || null)
       : null;
 
+    const activeIds = mode === "practice" ? (deck.correctOnceIds || []) : deck.masteredIds;
+
     const allActive = [...deck.tf, ...deck.mc, ...deck.calc, ...deck.def, ...deck.special, ...deck.fitb]
-      .filter(d => !deck.masteredIds.includes(d.id))
+      .filter(d => !activeIds.includes(d.id))
       .filter(d => !sessionPoolIds || sessionPoolIds.includes(d.id));
 
     if (allActive.length === 0) { setMsg("No active questions to master."); setTimeout(() => setMsg(""), 3000); return; }
     const n = Math.min(count, allActive.length);
     const toMaster = allActive.sort(() => Math.random() - 0.5).slice(0, n);
-    const newMasteredIds = [...deck.masteredIds, ...toMaster.map(d => d.id)];
-    const newDeck = {
-      ...deck,
-      tf:      deck.tf.filter(d => !newMasteredIds.includes(d.id)),
-      mc:      deck.mc.filter(d => !newMasteredIds.includes(d.id)),
-      calc:    deck.calc.filter(d => !newMasteredIds.includes(d.id)),
-      def:     deck.def.filter(d => !newMasteredIds.includes(d.id)),
-      special: deck.special.filter(d => !newMasteredIds.includes(d.id)),
-      fitb:    deck.fitb.filter(d => !newMasteredIds.includes(d.id)),
-      masteredIds: newMasteredIds,
-    };
+    const toMasterIds = toMaster.map(d => d.id);
+
+    let newDeck;
+    if (mode === "practice") {
+      newDeck = {
+        ...deck,
+        tf:      deck.tf.filter(d => !toMasterIds.includes(d.id)),
+        mc:      deck.mc.filter(d => !toMasterIds.includes(d.id)),
+        calc:    deck.calc.filter(d => !toMasterIds.includes(d.id)),
+        def:     deck.def.filter(d => !toMasterIds.includes(d.id)),
+        special: deck.special.filter(d => !toMasterIds.includes(d.id)),
+        fitb:    deck.fitb.filter(d => !toMasterIds.includes(d.id)),
+        correctOnceIds: [...(deck.correctOnceIds || []), ...toMasterIds],
+      };
+    } else {
+      const newMasteredIds = [...deck.masteredIds, ...toMasterIds];
+      newDeck = {
+        ...deck,
+        tf:      deck.tf.filter(d => !newMasteredIds.includes(d.id)),
+        mc:      deck.mc.filter(d => !newMasteredIds.includes(d.id)),
+        calc:    deck.calc.filter(d => !newMasteredIds.includes(d.id)),
+        def:     deck.def.filter(d => !newMasteredIds.includes(d.id)),
+        special: deck.special.filter(d => !newMasteredIds.includes(d.id)),
+        fitb:    deck.fitb.filter(d => !newMasteredIds.includes(d.id)),
+        masteredIds: newMasteredIds,
+      };
+    }
     setDeck(newDeck);
     const sessionComplete = mode === "study" && sessionPoolIds
-      && sessionPoolIds.every(id => newMasteredIds.includes(id));
-    const allMastered = newDeck.tf.length === 0 && newDeck.mc.length === 0 && newDeck.calc.length === 0 && newDeck.def.length === 0 && newDeck.special.length === 0 && newDeck.fitb.length === 0;
+      && sessionPoolIds.every(id => newDeck.masteredIds.includes(id));
+    const allMastered = mode === "practice" ? (newDeck.correctOnceIds?.length || 0) >= totalCount : newDeck.tf.length === 0 && newDeck.mc.length === 0 && newDeck.calc.length === 0 && newDeck.def.length === 0 && newDeck.special.length === 0 && newDeck.fitb.length === 0;
     if (sessionComplete) {
       setCurrentView("SESSION_END");
     } else if (allMastered) {
@@ -153,7 +171,7 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
         <span style={{ cursor:"pointer" }} onClick={() => setShow(false)}>×</span>
       </div>
       <div style={{ fontSize:12, fontFamily:"monospace", color:txt, marginBottom:10 }}>
-        active: {activeCount} · mastered: {deck.masteredIds.length} · total: {totalCount}
+        active: {activeCount} · {mode === "practice" ? "completed" : "mastered"}: {mode === "practice" ? (deck.correctOnceIds?.length || 0) : deck.masteredIds.length} · total: {totalCount}
       </div>
       <div style={{ fontSize:12, fontFamily:"monospace", color:txt, marginBottom:12 }}>
         tf: {deck.tf.length} · mc: {deck.mc.length} · calc: {deck.calc.length} · def: {deck.def.length} · fitb: {deck.fitb.length} · special: {deck.special.length}
@@ -170,7 +188,11 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
         <input type="number" min={1} max={activeCount} value={count} onChange={e => setCount(parseInt(e.target.value) || 1)} style={inpSt} />
         <button onClick={masterRandom} style={btnSt}>master random</button>
         {mode === "study" && deck.sessionIndex < 2 && (
-          <button onClick={devAdvanceSession} style={btnSt}>advance session ↗</button>
+          <button onClick={() => {
+            if (devAdvanceSession) devAdvanceSession();
+            setMsg(`Advanced to session ${deck.sessionIndex + 2}!`);
+            setTimeout(() => setMsg(""), 3000);
+          }} style={btnSt}>advance session ↗</button>
         )}
         {mode === "study" && (
           <button onClick={fillConfidence} style={btnSt}>fill confidence</button>
@@ -343,7 +365,7 @@ export default function StudyEngine() {
   }
 
   if (engine.currentView === "SESSION_END") {
-    return <SessionEndScreen {...{ s, QUIZ_SUBJECT, QUIZ_TITLE, renderMasteryBars, deck: engine.deck, weakSpotIds, sessionScoreRef: engine.sessionScoreRef, questions: engine.questions, answers: engine.answers, getWrongAnswerDisplay, confidence: engine.confidence, resetAll: engine.resetAll, continueToNextSession: engine.continueToNextSession, setMode: engine.setMode, setCurrentView: engine.setCurrentView, T, lm, computeTopicResults, latestDeckRef: engine.latestDeckRef, resumeRef: engine.resumeRef, saveProgress, advanceSession, checkCorrect }} />;
+    return <SessionEndScreen {...{ s, QUIZ_SUBJECT, QUIZ_TITLE, renderMasteryBars, deck: engine.deck, setDeck: engine.setDeck, weakSpotIds, sessionScoreRef: engine.sessionScoreRef, questions: engine.questions, answers: engine.answers, getWrongAnswerDisplay, confidence: engine.confidence, resetAll: engine.resetAll, continueToNextSession: engine.continueToNextSession, setMode: engine.setMode, setCurrentView: engine.setCurrentView, T, C, CV, lm, computeTopicResults, latestDeckRef: engine.latestDeckRef, resumeRef: engine.resumeRef, saveProgress, advanceSession, checkCorrect }} />;
   }
 
   if (engine.currentView === "BANK") {

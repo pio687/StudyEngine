@@ -28,8 +28,11 @@ export function useQuizEngine() {
 
   const resetAll = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(`${STORAGE_KEY}_study`);
+    localStorage.removeItem(`${STORAGE_KEY}_practice`);
     localStorage.removeItem("quiz_mode");
     const fresh = initDeck(null);
+    fresh.mode = "study";
     saveProgress(fresh);
     latestDeckRef.current = fresh;
     setDeck(fresh);
@@ -42,12 +45,24 @@ export function useQuizEngine() {
   }, []);
 
   useEffect(() => {
-    const savedDeck = initDeck(loadProgress());
+    const savedDeck = initDeck(loadProgress("study"));
+    savedDeck.mode = "study";
     if (savedDeck.sessionPools && savedDeck.sessionIndex < 3) {
       resumeRef.current = true;
     }
+    latestDeckRef.current = savedDeck;
     setDeck(savedDeck);
     setCurrentView("MENU");
+  }, []);
+
+  const getStudySessionNum = useCallback(() => {
+    const data = loadProgress("study");
+    return data && data.sessionPools ? data.sessionIndex + 1 : 1;
+  }, []);
+
+  const hasStudyProgress = useCallback(() => {
+    const data = loadProgress("study");
+    return !!(data && data.sessionPools);
   }, []);
 
   useEffect(() => { if (deck) saveProgress(deck); }, [deck]);
@@ -164,24 +179,21 @@ export function useQuizEngine() {
   }
   
   function selectMode(m) {
-    try { localStorage.setItem("quiz_mode", m); } catch {}
-    setMode(m);
+    const safeMode = typeof m === "string" ? m : "study";
+    try { localStorage.setItem("quiz_mode", safeMode); } catch {}
+    setMode(safeMode);
 
-    let deckForRound = deck;
+    const savedDeck = loadProgress(safeMode);
+    let deckForRound = initDeck(savedDeck);
+    deckForRound.mode = safeMode;
 
-    if (m === 'study') {
-      if (resumeRef.current) {
-        resumeRef.current = false;
-        deckForRound = latestDeckRef.current || deck;
-      } else {
-        const freshDeck = initDeck(null);
-        freshDeck.sessionPools = buildSessionPools();
-        deckForRound = freshDeck;
-      }
+    if (safeMode === 'study' && !deckForRound.sessionPools) {
+      deckForRound.sessionPools = buildSessionPools();
     }
 
+    latestDeckRef.current = deckForRound;
     setDeck(deckForRound);
-    setQuestions(buildRound(deckForRound, m));
+    setQuestions(buildRound(deckForRound, safeMode));
     setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
     setConfidence({});
     setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
@@ -210,6 +222,18 @@ export function useQuizEngine() {
     setCurrentView("QUIZ");
   }
 
+  function devAdvanceSession() {
+    const freshDeck = latestDeckRef.current || deck;
+    const nextDeck = advanceSession(freshDeck);
+    latestDeckRef.current = nextDeck;
+    setDeck(nextDeck);
+    setQuestions(buildRound(nextDeck, mode));
+    setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
+    setConfidence({});
+    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+    saveProgress(nextDeck);
+  }
+
   const total = questions.length;
   const ua = answers[q?.id];
   const score   = (currentView === "RESULTS" || currentView === "WIN") ? questions.reduce((a, q) => a + (checkCorrect(q, answers[q.id]) ? 1 : 0), 0) : 0;
@@ -222,6 +246,6 @@ export function useQuizEngine() {
     switchModeConfirm, setSwitchModeConfirm, mode, setMode, currentView, setCurrentView, latestDeckRef, resumeRef,
     sessionScoreRef, q, ua, total, allMastered, sessionComplete, score, pct, wrongQs,
     resetAll, goToBank, leaveBank, select, handleCalc, handleFitb, pickOrdering, clearOrdering, handleSubmit,
-    startNext, selectMode, continueToNextSession, devAdvanceSession,
+    startNext, selectMode, continueToNextSession, devAdvanceSession, getStudySessionNum, hasStudyProgress
   };
 }
