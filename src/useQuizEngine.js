@@ -18,7 +18,9 @@ export function useQuizEngine() {
   const [matchState, setMatchState] = useState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
   const [confidence, setConfidence] = useState({});
   const [switchModeConfirm, setSwitchModeConfirm] = useState(false);
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState(() => {
+    try { return localStorage.getItem("quiz_mode") || "study"; } catch { return "study"; }
+  });
   const [currentView, setCurrentView] = useState("LOADING");
   const [previousView, setPreviousView] = useState("MENU");
 
@@ -27,6 +29,7 @@ export function useQuizEngine() {
   const sessionScoreRef = useRef(null);
 
   const resetAll = useCallback(() => {
+    if (!window.confirm("Are you sure you want to reset all your progress? This cannot be undone.")) return;
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(`${STORAGE_KEY}_study`);
     localStorage.removeItem(`${STORAGE_KEY}_practice`);
@@ -76,8 +79,8 @@ export function useQuizEngine() {
   }, [current, q, answers]);
 
   const allMastered = deck ? (mode === "practice" ? (deck.correctOnceIds?.length || 0) >= ALL_Q.length : deck.tf.length === 0 && deck.mc.length === 0 && deck.calc.length === 0 && deck.def.length === 0 && deck.special.length === 0 && deck.fitb.length === 0) : false;
-  const currentSessionPool = deck && mode === "study" && deck.sessionPools ? (deck.sessionPools[String(deck.sessionIndex + 1)] || []) : [];
-  const sessionComplete = deck && mode === "study" && currentSessionPool.length > 0 && currentSessionPool.every(id => deck.masteredIds.includes(id));
+  const currentSessionPool = deck && mode === "study" && deck.sessionPools ? deck.sessionPools[String(deck.sessionIndex + 1)] : null;
+  const sessionComplete = deck && mode === "study" && currentSessionPool && currentSessionPool.every(id => deck.masteredIds.includes(id));
 
   useEffect(() => {
     if (!q && currentView === "QUIZ") {
@@ -138,31 +141,30 @@ export function useQuizEngine() {
     setDeck(newDeck);
     setAnswers(finalAnswers);
 
-    const freshAllMastered = mode === "practice"
-      ? (newDeck.correctOnceIds?.length || 0) >= ALL_Q.length
-      : newDeck.tf.length === 0 && newDeck.mc.length === 0 && newDeck.calc.length === 0 && newDeck.def.length === 0 && newDeck.special.length === 0 && newDeck.fitb.length === 0;
-
-    if (freshAllMastered) {
-      setCurrentView("WIN");
-    } else {
-      setCurrentView("RESULTS");
-    }
+    setCurrentView("RESULTS");
     setCurrent(0);
   }
 
   function startNext() {
     const freshDeck = latestDeckRef.current || deck;
 
-    if (allMastered) return;
-
     const freshSessionPool = mode === "study" && freshDeck.sessionPools
-      ? (freshDeck.sessionPools[String(freshDeck.sessionIndex + 1)] || [])
-      : [];
-    const freshSessionComplete = mode === "study" && freshSessionPool.length > 0
+      ? freshDeck.sessionPools[String(freshDeck.sessionIndex + 1)]
+      : null;
+    const freshSessionComplete = mode === "study" && freshSessionPool
       && freshSessionPool.every(id => freshDeck.masteredIds.includes(id));
 
     if (mode === "study" && freshSessionComplete) {
       setCurrentView("SESSION_END");
+      return;
+    }
+
+    const freshAllMastered = mode === "practice"
+      ? (freshDeck.correctOnceIds?.length || 0) >= ALL_Q.length
+      : freshDeck.tf.length === 0 && freshDeck.mc.length === 0 && freshDeck.calc.length === 0 && freshDeck.def.length === 0 && freshDeck.special.length === 0 && freshDeck.fitb.length === 0;
+
+    if (freshAllMastered) {
+      setCurrentView("WIN");
       return;
     }
 
@@ -187,8 +189,13 @@ export function useQuizEngine() {
     let deckForRound = initDeck(savedDeck);
     deckForRound.mode = safeMode;
 
-    if (safeMode === 'study' && !deckForRound.sessionPools) {
-      deckForRound.sessionPools = buildSessionPools();
+    if (safeMode === 'study') {
+      const p = deckForRound.sessionPools;
+      const isInvalid = !p || !p["1"] || !p["2"] || (p["1"].length + p["2"].length !== ALL_Q.length);
+      if (isInvalid) {
+        deckForRound.sessionPools = buildSessionPools();
+        deckForRound.sessionIndex = 0;
+      }
     }
 
     latestDeckRef.current = deckForRound;
@@ -203,27 +210,6 @@ export function useQuizEngine() {
 
   function continueToNextSession() {
     const freshDeck = latestDeckRef.current || deck;
-    const topicResults = computeTopicResults(questions, answers);
-    const deckWithResults = {
-      ...freshDeck,
-      sessionTopicResults: {
-        ...(freshDeck.sessionTopicResults || {}),
-        [freshDeck.sessionIndex]: topicResults,
-      },
-    };
-    const nextDeck = advanceSession(deckWithResults);
-    latestDeckRef.current = nextDeck;
-    setDeck(nextDeck);
-    setQuestions(buildRound(nextDeck, mode));
-    setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
-    setConfidence({});
-    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
-    saveProgress(nextDeck);
-    setCurrentView("QUIZ");
-  }
-
-  function devAdvanceSession() {
-    const freshDeck = latestDeckRef.current || deck;
     const nextDeck = advanceSession(freshDeck);
     latestDeckRef.current = nextDeck;
     setDeck(nextDeck);
@@ -232,6 +218,7 @@ export function useQuizEngine() {
     setConfidence({});
     setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
     saveProgress(nextDeck);
+    setCurrentView("QUIZ");
   }
 
   const total = questions.length;
@@ -246,6 +233,6 @@ export function useQuizEngine() {
     switchModeConfirm, setSwitchModeConfirm, mode, setMode, currentView, setCurrentView, latestDeckRef, resumeRef,
     sessionScoreRef, q, ua, total, allMastered, sessionComplete, score, pct, wrongQs,
     resetAll, goToBank, leaveBank, select, handleCalc, handleFitb, pickOrdering, clearOrdering, handleSubmit,
-    startNext, selectMode, continueToNextSession, devAdvanceSession, getStudySessionNum, hasStudyProgress
+    startNext, selectMode, continueToNextSession, getStudySessionNum, hasStudyProgress
   };
 }

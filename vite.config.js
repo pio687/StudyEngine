@@ -7,4 +7,5 @@ export default defineConfig({
     react(),
     yaml(), // Add the plugin here
   ],
+  base: './',
 });

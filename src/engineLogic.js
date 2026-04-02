@@ -132,11 +132,22 @@ export function initDeck(saved) {
   };
 
   if (!saved) {
+    defaultDeck.sessionPools = buildSessionPools();
     return defaultDeck;
   };
 
+  // Self-healing: if the cached pool doesn't match the active question bank size,
+  // it means the user swapped the questions.yaml file. Rebuild completely to avoid 0/0 ghost pools.
+  const totalActive = (saved.tf?.length || 0) + (saved.mc?.length || 0) + (saved.calc?.length || 0) + (saved.def?.length || 0) + (saved.special?.length || 0) + (saved.fitb?.length || 0);
+  const totalMastered = saved.masteredIds?.length || 0;
+  if (totalActive + totalMastered !== ALL_Q.length) {
+    defaultDeck.sessionPools = buildSessionPools();
+    defaultDeck.mode = (typeof saved.mode === "string" && saved.mode) ? saved.mode : "study";
+    return defaultDeck;
+  }
+
   // Merge saved properties with defaults, ensuring all arrays are initialized if missing
-  return {
+  const merged = {
     ...defaultDeck, // Start with all defaults
     ...saved,       // Overlay saved values
     // Ensure arrays are always arrays, even if saved had them as null/undefined
@@ -154,6 +165,17 @@ export function initDeck(saved) {
     sessionTopicResults: saved.sessionTopicResults || defaultDeck.sessionTopicResults,
     mode: (typeof saved.mode === "string" && saved.mode) ? saved.mode : defaultDeck.mode,
   };
+
+  // Final safety net for study mode session pools
+  if (merged.mode === "study") {
+    const p = merged.sessionPools;
+    const isInvalid = !p || !p["1"] || !p["2"] || (p["1"].length + p["2"].length !== ALL_Q.length);
+    if (isInvalid) {
+      merged.sessionPools = buildSessionPools();
+      merged.sessionIndex = 0;
+    }
+  }
+  return merged;
 }
 
 export function buildSessionPools() {
@@ -182,6 +204,7 @@ export function buildSessionPools() {
 export function advanceSession(deck) {
   const nextSessionIndex = deck.sessionIndex + 1;
   let sessionPools = { ...deck.sessionPools };
+  let nextDeck = { ...deck };
   
   if (nextSessionIndex === 2) {
     const weakSpotIds = ALL_Q
@@ -193,10 +216,39 @@ export function advanceSession(deck) {
       })
       .map(q => q.id);
     sessionPools["3"] = weakSpotIds;
+
+    // Re-activate weak spots so they aren't skipped by the engine
+    nextDeck.masteredIds = (nextDeck.masteredIds || []).filter(id => !weakSpotIds.includes(id));
+    
+    const tf = [...nextDeck.tf];
+    const mc = [...nextDeck.mc];
+    const calc = [...nextDeck.calc];
+    const def = [...nextDeck.def];
+    const special = [...nextDeck.special];
+    const fitb = [...nextDeck.fitb];
+
+    weakSpotIds.forEach(id => {
+      const q = getQById(id);
+      if (!q) return;
+      const entry = { id: q.id, pos: Math.random() * 100, streak: 0, misses: deck.missedCounts[q.id] || 0 };
+      if (q.type === "tf") tf.push(entry);
+      else if (q.type === "mc") mc.push(entry);
+      else if (q.type === "calc") calc.push(entry);
+      else if (q.type === "def") def.push(entry);
+      else if (q.type === "ordering" || q.type === "match") special.push(entry);
+      else if (q.type === "fitb") fitb.push(entry);
+    });
+
+    nextDeck.tf = tf;
+    nextDeck.mc = mc;
+    nextDeck.calc = calc;
+    nextDeck.def = def;
+    nextDeck.special = special;
+    nextDeck.fitb = fitb;
   }
 
   return {
-    ...deck,
+    ...nextDeck,
     roundIndex:     0,
     sessionIndex:   nextSessionIndex,
     sessionPools,
@@ -241,7 +293,10 @@ export function checkCorrect(q, answer) {
     return String(answer).trim().toLowerCase() === String(q.answer).trim().toLowerCase();
   }
   if (q.type === "ordering") return JSON.stringify(answer) === JSON.stringify(q.correctOrder);
-  if (q.type === "match")    return answer && typeof answer === "object" && Object.keys(answer).length === q.pairs.length;
+  if (q.type === "match") {
+    if (!answer || typeof answer !== "object" || Object.keys(answer).length !== q.pairs.length) return false;
+    return q.pairs.every(p => answer[p.term] === p.desc);
+  }
   if (q.type === "fitb") {
     const normalize = str => String(str).trim().toLowerCase().replace(/\s+/g, " ");
     const input = normalize(answer);
@@ -428,6 +483,20 @@ export function applyResults(deck, questions, answers, confidence, mode) {
     const midpoint = Math.floor(pool.length / 2);
     pool.forEach((d, i) => { if (i < midpoint) d.pos = i; });
   });
+
+  // Accumulate topic results for the session
+  if (mode === "study") {
+    const roundTopics = computeTopicResults(questions, answers);
+    const sIdx = String(newDeck.sessionIndex);
+    const currentSessionTopics = newDeck.sessionTopicResults[sIdx] ? JSON.parse(JSON.stringify(newDeck.sessionTopicResults[sIdx])) : {};
+    
+    Object.keys(roundTopics).forEach(topic => {
+      if (!currentSessionTopics[topic]) currentSessionTopics[topic] = { correct: 0, total: 0 };
+      currentSessionTopics[topic].correct += roundTopics[topic].correct;
+      currentSessionTopics[topic].total += roundTopics[topic].total;
+    });
+    newDeck.sessionTopicResults = { ...newDeck.sessionTopicResults, [sIdx]: currentSessionTopics };
+  }
 
   return newDeck;
 }

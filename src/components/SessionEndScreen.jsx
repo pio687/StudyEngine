@@ -3,6 +3,7 @@ import {
   SESSION_2_END_WEAK,
   SESSION_2_END_PERFECT,
   SESSION_3_END,
+  ALL_Q,
 } from "../engineLogic.js";
 
 export default function SessionEndScreen({
@@ -13,25 +14,19 @@ export default function SessionEndScreen({
   deck,
   setDeck,
   weakSpotIds,
-  sessionScoreRef,
-  questions,
-  answers,
   getWrongAnswerDisplay,
-  confidence,
   resetAll,
   continueToNextSession,
-  setMode,
   setCurrentView,
   T,
   lm,
   CV,
   C,
-  computeTopicResults,
   latestDeckRef,
   resumeRef,
   saveProgress,
   advanceSession,
-  checkCorrect,
+  goToBank,
 }) {
   const sessionIdx = deck.sessionIndex; // 0 = just finished S1, 1 = just finished S2, 2 = just finished S3
   const isS2 = sessionIdx === 1;
@@ -77,6 +72,11 @@ export default function SessionEndScreen({
               START OVER
             </button>
           </div>
+          <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:T.muted, fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+            <span style={s.resetLink} onClick={() => setCurrentView("MENU")}>return to menu</span>
+            <span style={s.resetLink} onClick={goToBank}>question bank</span>
+            <span style={s.resetLink} onClick={resetAll}>reset progress</span>
+          </div>
         </div>
       </div>
     );
@@ -89,11 +89,8 @@ export default function SessionEndScreen({
   if (isS2 && !hasWeakSpots) message = SESSION_2_END_PERFECT; // fallback if guard above didn't catch it
   if (isS3) message = SESSION_3_END;
 
-  // Use snapshotted wrong answers — questions/answers may have been rebuilt
-  const sessionWrongQs =
-    sessionScoreRef.current?.wrongQs ??
-    questions.filter((q) => !checkCorrect(q, answers[q.id]));
-  const sessionAnswers = sessionScoreRef.current?.answers ?? answers;
+  const sessionPool = deck.sessionPools?.[String(sessionIdx + 1)] || [];
+  const sessionWeakSpots = ALL_Q.filter(q => weakSpotIds.includes(q.id) && sessionPool.includes(q.id));
 
   return (
     <div style={s.app}>
@@ -110,18 +107,15 @@ export default function SessionEndScreen({
               marginBottom: 4,
             }}
           >
-            Session {sessionIdx + 1} of {isS3 ? 3 : 3}
+            Session {sessionIdx + 1} of 3
           </div>
         </div>
         {renderMasteryBars()}
         <div style={s.card}>
-          {/* Score — use snapshotted values so they survive answers/questions being cleared */}
           {(() => {
-            const snapQs = sessionScoreRef.current?.questions ?? questions;
-            const snapAns = sessionScoreRef.current?.answers ?? answers;
-            const st = snapQs.length;
-            const ss = snapQs.filter(q => checkCorrect(q, snapAns[q.id])).length;
-            const sp = st > 0 ? Math.round((ss / st) * 100) : 0;
+            const st = sessionPool.length;
+            const ss = isS3 ? st : st - sessionWeakSpots.length;
+            const sp = st > 0 ? Math.round((ss / st) * 100) : 100;
             return (
               <>
                 <div
@@ -164,7 +158,7 @@ export default function SessionEndScreen({
                     marginBottom: 16,
                   }}
                 >
-                  {sp === 100 ? "Perfect round! 🌱" : sp >= 80 ? "Great work!" : sp >= 60 ? "Getting there." : "Keep at it."}
+                  {sp === 100 && !isS3 ? "Perfect session! 🌱" : isS3 ? "All weak spots mastered!" : sp >= 80 ? "Great work!" : sp >= 60 ? "Getting there." : "Keep at it."}
                 </div>
               </>
             );
@@ -175,21 +169,20 @@ export default function SessionEndScreen({
             {message}
           </div>
 
-          {/* Wrong answer review */}
-          {sessionWrongQs.length > 0 && (
+          {/* Session Weak Spots Review */}
+          {sessionWeakSpots.length > 0 && !isS3 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.wrong, marginBottom: 10 }}>⚠ Review before you sleep</div>
-              {sessionWrongQs.map((q, i) => {
-                const { ua, ca } = getWrongAnswerDisplay(q, sessionAnswers[q.id]);
-                const isHCW = confidence[q.id] === "know";
+              {sessionWeakSpots.map((q, i) => {
+                const { ca } = getWrongAnswerDisplay(q, undefined);
+                const isHCW = deck.hcwIds?.includes(q.id);
                 return (
                   <div key={q.id} style={{ ...s.wrongItem, borderColor:isHCW?"rgba(249,115,22,0.4)":undefined, background:isHCW?"rgba(249,115,22,0.04)":undefined, marginBottom:8 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4, gap:8 }}>
                       <div style={{ fontSize:13, color:T.text, lineHeight:1.5, flex:1 }}><strong>#{i + 1} [{q.topic}]</strong> {q.question.split("\n")[0]}</div>
                       {isHCW && <span style={{ fontSize:10, fontFamily:"monospace", color:"#f97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:4, padding:"1px 5px", flexShrink:0 }}>HCW</span>}
                     </div>
-                    <div style={{ fontSize:12, color:T.muted, marginBottom:2 }}>Your answer: <span style={{ color:T.wrong }}>{ua}</span></div>
-                    <div style={{ fontSize:12, color:T.muted, marginBottom:4 }}>Correct: <span style={{ color:T.accent }}>{ca}</span></div>
+                    <div style={{ fontSize:12, color:T.muted, marginBottom:4 }}>Correct answer: <span style={{ color:T.accent }}>{ca}</span></div>
                     <div style={{ fontSize:12, color:T.yellow, lineHeight:1.5 }}>{q.explanation}</div>
                   </div>
                 );
@@ -203,10 +196,8 @@ export default function SessionEndScreen({
               <button
                 style={{ flex:2, padding:"12px", borderRadius:7, border:"none", background:lm?CV.btnBg:C.accent, color:lm?CV.btnText:"#0d1117", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"monospace" }}
                 onClick={() => {
-                  const topicResults = computeTopicResults(sessionScoreRef.current?.questions ?? questions, sessionScoreRef.current?.answers ?? answers);
                   const freshDeck = latestDeckRef.current || deck;
-                  const deckWithResults = { ...freshDeck, sessionTopicResults: { ...(freshDeck.sessionTopicResults || {}), [freshDeck.sessionIndex]: topicResults } };
-                  const advancedDeck = advanceSession(deckWithResults);
+                  const advancedDeck = advanceSession(freshDeck);
                   saveProgress(advancedDeck);
                   latestDeckRef.current = advancedDeck;
                   setDeck(advancedDeck);
@@ -225,7 +216,7 @@ export default function SessionEndScreen({
             </div>
           )}
           {isS3 && (() => {
-            const s3Topics = computeTopicResults(questions, answers);
+            const s3Topics = deck.sessionTopicResults?.[2] || {};
             const s1Topics = deck.sessionTopicResults?.[0] || {};
             const s2Topics = deck.sessionTopicResults?.[1] || {};
             const topics = Object.keys(s3Topics).filter(t => t !== "Integrative");
@@ -260,8 +251,10 @@ export default function SessionEndScreen({
             <button style={{ ...s.btn(true,false), width:"100%", padding:"12px", fontFamily:"monospace" }} onClick={resetAll}>START OVER</button>
           )}
         </div>
-        <div style={{ textAlign: "center", marginTop: 8 }}>
-          <span style={s.resetLink} onClick={resetAll}>reset all progress</span>
+        <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:T.muted, fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+          <span style={s.resetLink} onClick={() => setCurrentView("MENU")}>return to menu</span>
+          <span style={s.resetLink} onClick={goToBank}>question bank</span>
+          <span style={s.resetLink} onClick={resetAll}>reset progress</span>
         </div>
       </div>
     </div>

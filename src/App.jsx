@@ -38,7 +38,7 @@ import {
   ALL_Q, getQById,
   SLOT_ROTATION,
   saveProgress, advanceSession,
-  computeTopicResults, checkCorrect, buildRound,
+  checkCorrect, buildRound,
 } from "./engineLogic.js";
 
 import { useQuizEngine } from './components/hooks/useQuizEngine.js';
@@ -77,20 +77,31 @@ const CV = {
 // DEV TOOL
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, continueToNextSession, totalCount, lightMode, mode, devAdvanceSession, setConfidence }) {
+function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, totalCount, lightMode, mode, setConfidence }) {
   const [show, setShow] = useState(false);
   const [count, setCount] = useState(10);
   const [msg, setMsg] = useState("");
   const lm = lightMode; // scoped to DevTool
 
+  // Shared pool calculations
+  const sessionPoolIds = mode === "study" && deck.sessionPools
+    ? (deck.sessionPools[String(deck.sessionIndex + 1)] || [])
+    : null;
+  const activeIds = mode === "practice" ? (deck.correctOnceIds || []) : deck.masteredIds;
+
+  const getC = (arr) => arr.filter(d => !activeIds.includes(d.id) && (!sessionPoolIds || sessionPoolIds.includes(d.id))).length;
+  const tfC = getC(deck.tf);
+  const mcC = getC(deck.mc);
+  const calcC = getC(deck.calc);
+  const defC = getC(deck.def);
+  const specialC = getC(deck.special);
+  const fitbC = getC(deck.fitb);
+
+  const activeCount = tfC + mcC + calcC + defC + specialC + fitbC;
+  const displayTotal = sessionPoolIds ? sessionPoolIds.length : totalCount;
+  const displayMastered = sessionPoolIds ? sessionPoolIds.filter(id => activeIds.includes(id)).length : activeIds.length;
+
   function masterRandom() {
-    // In Study Mode, only master questions in the current session pool
-    const sessionPoolIds = mode === "study" && deck.sessionPools
-      ? (deck.sessionPools[String(deck.sessionIndex + 1)] || null)
-      : null;
-
-    const activeIds = mode === "practice" ? (deck.correctOnceIds || []) : deck.masteredIds;
-
     const allActive = [...deck.tf, ...deck.mc, ...deck.calc, ...deck.def, ...deck.special, ...deck.fitb]
       .filter(d => !activeIds.includes(d.id))
       .filter(d => !sessionPoolIds || sessionPoolIds.includes(d.id));
@@ -149,7 +160,6 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
     setTimeout(() => setMsg(""), 3000);
   }
 
-  const activeCount = deck.tf.length + deck.mc.length + deck.calc.length + deck.def.length + deck.special.length + deck.fitb.length;
   const border  = "1px solid var(--border)";
   const bg      = "var(--card)";
   const txt     = "var(--text)";
@@ -171,10 +181,10 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
         <span style={{ cursor:"pointer" }} onClick={() => setShow(false)}>×</span>
       </div>
       <div style={{ fontSize:12, fontFamily:"monospace", color:txt, marginBottom:10 }}>
-        active: {activeCount} · {mode === "practice" ? "completed" : "mastered"}: {mode === "practice" ? (deck.correctOnceIds?.length || 0) : deck.masteredIds.length} · total: {totalCount}
+        active: {activeCount} · {mode === "practice" ? "completed" : "mastered"}: {displayMastered} · total: {displayTotal}
       </div>
       <div style={{ fontSize:12, fontFamily:"monospace", color:txt, marginBottom:12 }}>
-        tf: {deck.tf.length} · mc: {deck.mc.length} · calc: {deck.calc.length} · def: {deck.def.length} · fitb: {deck.fitb.length} · special: {deck.special.length}
+        tf: {tfC} · mc: {mcC} · calc: {calcC} · def: {defC} · fitb: {fitbC} · special: {specialC}
       </div>
       {mode === "study" && (
         <div style={{ fontSize:11, fontFamily:"monospace", color:txt, marginBottom:12 }}>
@@ -187,10 +197,10 @@ function DevTool({ deck, setDeck, questions, setQuestions, setCurrentView, conti
       <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
         <input type="number" min={1} max={activeCount} value={count} onChange={e => setCount(parseInt(e.target.value) || 1)} style={inpSt} />
         <button onClick={masterRandom} style={btnSt}>master random</button>
-        {mode === "study" && deck.sessionIndex < 2 && (
+        {mode === "study" && deck.sessionPools && deck.sessionIndex < 2 && (
           <button onClick={() => {
-            if (devAdvanceSession) devAdvanceSession();
-            setMsg(`Advanced to session ${deck.sessionIndex + 2}!`);
+            setCurrentView("SESSION_END");
+            setMsg(`Session ${deck.sessionIndex + 1} ended!`);
             setTimeout(() => setMsg(""), 3000);
           }} style={btnSt}>advance session ↗</button>
         )}
@@ -323,27 +333,42 @@ export default function StudyEngine() {
 
   // Render helper for MasteryBars
   function renderMasteryBars() {
+    const isStudyMode = engine.mode === "study";
+
+    let barTotal = totalCount;
+    let barCorrectOnce = (engine.deck.correctOnceIds || []).length;
+    let barMastered = masteredCount;
+
+    if (isStudyMode && engine.deck.sessionPools && engine.currentView !== "WIN") {
+      const currentPoolIds = engine.deck.sessionPools[String(engine.deck.sessionIndex + 1)];
+      if (currentPoolIds && currentPoolIds.length > 0) {
+        barTotal = currentPoolIds.length;
+        barCorrectOnce = (engine.deck.correctOnceIds || []).filter(id => currentPoolIds.includes(id)).length;
+        barMastered = (engine.deck.masteredIds || []).filter(id => currentPoolIds.includes(id)).length;
+      }
+    }
+
+    const correctOncePct = barTotal > 0 ? Math.round((barCorrectOnce / barTotal) * 100) : 100;
+    const masteredPct = barTotal > 0 ? Math.round((barMastered / barTotal) * 100) : 100;
+
     return (
       <div style={{ background:"var(--card)", border:"1px solid var(--border)", borderRadius:8, padding:"10px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:12 }}>
         <div style={{ fontSize:10, color:"var(--muted)", fontFamily:"monospace", whiteSpace:"nowrap", minWidth:55, fontWeight:700 }}>
-          {engine.mode === "practice"
-            ? <div>Complete</div>
-            : <><div style={{ marginBottom:4 }}>Correct</div><div>Mastered</div></>
-          }
+          {isStudyMode ? <><div style={{ marginBottom:4 }}>Correct</div><div>Mastered</div></> : <div>Complete</div>}
         </div>
         <div style={{ flex:1, display:"flex", flexDirection:"column", gap:5 }}>
-          {engine.mode !== "practice" && (
+          {isStudyMode && (
             <div style={{ height:5, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-              <div style={{ height:"100%", background:"linear-gradient(90deg,#3fb950,#bc8cff)", borderRadius:3, transition:"width 0.5s ease", width:`${Math.round((engine.deck.correctOnceIds?.length||0)/totalCount*100)}%` }} />
+              <div style={{ height:"100%", background:"linear-gradient(90deg,#3fb950,#bc8cff)", borderRadius:3, transition:"width 0.5s ease", width:`${correctOncePct}%` }} />
             </div>
           )}
           <div style={{ height:5, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-            <div style={{ height:"100%", background:"linear-gradient(90deg,#e3b341,#d4920a)", borderRadius:3, transition:"width 0.5s ease", width:engine.mode==="practice"?`${Math.round((engine.deck.correctOnceIds?.length||0)/totalCount*100)}%`:`${masteryPct}%` }} />
+            <div style={{ height:"100%", background:"linear-gradient(90deg,#e3b341,#d4920a)", borderRadius:3, transition:"width 0.5s ease", width:isStudyMode ? `${masteredPct}%` : `${correctOncePct}%` }} />
           </div>
         </div>
         <div style={{ fontSize:11, fontFamily:"monospace", minWidth:50, textAlign:"right" }}>
-          {engine.mode !== "practice" && <div style={{ marginBottom:4, color:"var(--accent)" }}>{engine.deck.correctOnceIds?.length||0}/{totalCount}</div>}
-          <div style={{ color:"var(--yellow)" }}>{engine.mode==="practice"?(engine.deck.correctOnceIds?.length||0):masteredCount}/{totalCount}</div>
+          {isStudyMode && <div style={{ marginBottom:4, color:"var(--accent)" }}>{barCorrectOnce}/{barTotal}</div>}
+          <div style={{ color:"var(--yellow)" }}>{isStudyMode ? barMastered : barCorrectOnce}/{barTotal}</div>
         </div>
       </div>
     );
@@ -365,7 +390,7 @@ export default function StudyEngine() {
   }
 
   if (engine.currentView === "SESSION_END") {
-    return <SessionEndScreen {...{ s, QUIZ_SUBJECT, QUIZ_TITLE, renderMasteryBars, deck: engine.deck, setDeck: engine.setDeck, weakSpotIds, sessionScoreRef: engine.sessionScoreRef, questions: engine.questions, answers: engine.answers, getWrongAnswerDisplay, confidence: engine.confidence, resetAll: engine.resetAll, continueToNextSession: engine.continueToNextSession, setMode: engine.setMode, setCurrentView: engine.setCurrentView, T, C, CV, lm, computeTopicResults, latestDeckRef: engine.latestDeckRef, resumeRef: engine.resumeRef, saveProgress, advanceSession, checkCorrect }} />;
+    return <SessionEndScreen {...{ s, QUIZ_SUBJECT, QUIZ_TITLE, renderMasteryBars, deck: engine.deck, setDeck: engine.setDeck, weakSpotIds, getWrongAnswerDisplay, resetAll: engine.resetAll, continueToNextSession: engine.continueToNextSession, setCurrentView: engine.setCurrentView, T, C, CV, lm, latestDeckRef: engine.latestDeckRef, resumeRef: engine.resumeRef, saveProgress, advanceSession, goToBank: engine.goToBank }} />;
   }
 
   if (engine.currentView === "BANK") {
