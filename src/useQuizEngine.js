@@ -15,7 +15,7 @@ export function useQuizEngine() {
   const [calcInput, setCalcInput] = useState("");
   const [fitbInput, setFitbInput] = useState("");
   const [orderSelected, setOrderSelected] = useState([]);
-  const [matchState, setMatchState] = useState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+  const [matchState, _setMatchState] = useState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
   const [confidence, setConfidence] = useState({});
   const [switchModeConfirm, setSwitchModeConfirm] = useState(false);
   const [mode, setMode] = useState(() => {
@@ -42,7 +42,7 @@ export function useQuizEngine() {
     setQuestions([]);
     setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
     setConfidence({});
-    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+    _setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
     setMode(null);
     setCurrentView("MENU");
   }, []);
@@ -72,11 +72,52 @@ export function useQuizEngine() {
 
   const q  = questions[current];
 
+  // This wrapper for setMatchState ensures that any updates to the `matched` pairs
+  // are immediately saved to the main `answers` object. This fixes the issue where
+  // matching question answers were lost upon navigation.
+  const setMatchState = (updater) => {
+    const qId = q?.id; // Get the ID of the current question.
+    
+    _setMatchState(prevState => {
+      const newState = typeof updater === 'function' ? updater(prevState) : updater;
+      
+      // If the `matched` pairs have changed, synchronize it to the `answers` state.
+      if (qId && q.type === 'match' && JSON.stringify(newState.matched) !== JSON.stringify(prevState.matched)) {
+        setAnswers(prevAnswers => ({
+          ...prevAnswers,
+          [qId]: newState.matched
+        }));
+      }
+      return newState;
+    });
+  };
+
   useEffect(() => {
     const savedAnswer = answers[q?.id];
     setFitbInput(savedAnswer !== undefined && q?.type === "fitb" ? savedAnswer : "");
     setCalcInput(savedAnswer !== undefined && q?.type === "calc" ? savedAnswer : "");
   }, [current, q, answers]);
+
+  // Fix for state leakage with complex question types
+  useEffect(() => {
+    if (!q) return;
+    const savedAnswer = answers[q.id];
+
+    // Hydrate ordering state when navigating to an ordering question
+    if (q.type === 'ordering') {
+      setOrderSelected(savedAnswer || []);
+    }
+    // Hydrate matching state when navigating to a matching question
+    if (q.type === 'match') {
+      _setMatchState({
+        selectedTerm: null,
+        selectedDesc: null,
+        matched: savedAnswer || {},
+        wrong: { term: null, desc: null },
+        feedback: ""
+      });
+    }
+  }, [current, q?.id]);
 
   const allMastered = deck ? (mode === "practice" ? (deck.correctOnceIds?.length || 0) >= ALL_Q.length : deck.tf.length === 0 && deck.mc.length === 0 && deck.calc.length === 0 && deck.def.length === 0 && deck.special.length === 0 && deck.fitb.length === 0) : false;
   const currentSessionPool = deck && mode === "study" && deck.sessionPools ? deck.sessionPools[String(deck.sessionIndex + 1)] : null;
@@ -121,25 +162,21 @@ export function useQuizEngine() {
   }
 
   function handleSubmit() {
-    const finalAnswers = { ...answers };
-    if (q.type === "calc")     finalAnswers[q.id] = calcInput;
-    if (q.type === "fitb")     finalAnswers[q.id] = fitbInput;
-    if (q.type === "ordering") finalAnswers[q.id] = orderSelected;
-    if (q.type === "match")    finalAnswers[q.id] = matchState.matched;
-    const newDeck = applyResults(deck, questions, finalAnswers, confidence, mode);
+    // The `answers` object is the single source of truth, updated by question components.
+    // The flawed logic that tried to harvest answers here has been removed.
+    const newDeck = applyResults(deck, questions, answers, confidence, mode);
     latestDeckRef.current = newDeck;
-    const snapScore = questions.reduce((a, q) => a + (checkCorrect(q, finalAnswers[q.id]) ? 1 : 0), 0);
+    const snapScore = questions.reduce((a, q) => a + (checkCorrect(q, answers[q.id]) ? 1 : 0), 0);
     const snapTotal = questions.length;
     sessionScoreRef.current = {
       score: snapScore,
       total: snapTotal,
       pct: snapTotal > 0 ? Math.round((snapScore / snapTotal) * 100) : 0,
-      wrongQs: questions.filter(q => !checkCorrect(q, finalAnswers[q.id])),
-      answers: finalAnswers,
+      wrongQs: questions.filter(q => !checkCorrect(q, answers[q.id])),
+      answers: { ...answers },
       questions: [...questions],
     };
     setDeck(newDeck);
-    setAnswers(finalAnswers);
 
     setCurrentView("RESULTS");
     setCurrent(0);
@@ -176,7 +213,7 @@ export function useQuizEngine() {
     setQuestions(nextQs);
     setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
     setConfidence({});
-    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+    _setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
     setCurrentView("QUIZ");
   }
   
@@ -203,7 +240,7 @@ export function useQuizEngine() {
     setQuestions(buildRound(deckForRound, safeMode));
     setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
     setConfidence({});
-    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+    _setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
     saveProgress(deckForRound);
     setCurrentView("QUIZ");
   }
@@ -216,7 +253,7 @@ export function useQuizEngine() {
     setQuestions(buildRound(nextDeck, mode));
     setCurrent(0); setAnswers({}); setCalcInput(""); setFitbInput(""); setOrderSelected([]);
     setConfidence({});
-    setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
+    _setMatchState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
     saveProgress(nextDeck);
     setCurrentView("QUIZ");
   }

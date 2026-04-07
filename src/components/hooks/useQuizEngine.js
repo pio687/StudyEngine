@@ -25,6 +25,7 @@ export function useQuizEngine() {
   const latestDeckRef = useRef(null);
   const resumeRef = useRef(false);
   const sessionScoreRef = useRef(null);
+  const prevQId = useRef(null);
 
   const resetRoundState = useCallback(() => {
     setCurrent(0);
@@ -67,6 +68,42 @@ export function useQuizEngine() {
     setFitbInput(savedAnswer !== undefined && q?.type === "fitb" ? savedAnswer : "");
     setCalcInput(savedAnswer !== undefined && q?.type === "calc" ? savedAnswer : "");
   }, [current, q, answers]);
+
+  // Hydrate complex states when navigating between questions
+  useEffect(() => {
+    if (q?.id !== prevQId.current) {
+      prevQId.current = q?.id;
+      if (!q) return;
+      
+      const savedAnswer = answers[q.id];
+      
+      setOrderSelected(q.type === 'ordering' ? (savedAnswer || []) : []);
+      
+      setMatchState(q.type === 'match' ? {
+        selectedTerm: null,
+        selectedDesc: null,
+        matched: savedAnswer || {},
+        wrong: { term: null, desc: null },
+        feedback: ""
+      } : {
+        selectedTerm: null,
+        selectedDesc: null,
+        matched: {},
+        wrong: { term: null, desc: null },
+        feedback: ""
+      });
+    }
+  }, [q, answers]);
+
+  // Keep answers synced with matchState for when multiple match questions exist in a round
+  useEffect(() => {
+    if (q?.type === 'match') {
+      setAnswers(prev => {
+        if (JSON.stringify(prev[q.id]) === JSON.stringify(matchState.matched)) return prev;
+        return { ...prev, [q.id]: matchState.matched };
+      });
+    }
+  }, [matchState.matched, q]);
 
   const allMastered = isAllMastered(deck, mode);
   const currentSessionPool = deck && mode === "study" && deck.sessionPools ? (deck.sessionPools[String(deck.sessionIndex + 1)] || []) : [];

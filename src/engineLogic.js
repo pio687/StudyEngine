@@ -102,14 +102,19 @@ export function loadProgress(mode = "study") {
     }
     if (!saved || saved.version !== DECK_VERSION) return null;
     return saved;
-  } catch { return null; }
+  } catch (error) {
+    console.error("Failed to load quiz progress from localStorage:", error);
+    return null;
+  }
 }
 
 export function saveProgress(s) {
   try { 
     const mode = (typeof s.mode === "string" && s.mode) ? s.mode : "study";
     localStorage.setItem(`${STORAGE_KEY}_${mode}`, JSON.stringify({ ...s, version: DECK_VERSION })); 
-  } catch {}
+  } catch (error) {
+    console.error("Failed to save quiz progress to localStorage. You may have exceeded the storage quota.", error);
+  }
 }
 
 export function initDeck(saved) {
@@ -134,7 +139,7 @@ export function initDeck(saved) {
   if (!saved) {
     defaultDeck.sessionPools = buildSessionPools();
     return defaultDeck;
-  };
+  }
 
   // Self-healing: if the cached pool doesn't match the active question bank size,
   // it means the user swapped the questions.yaml file. Rebuild completely to avoid 0/0 ghost pools.
@@ -287,7 +292,8 @@ export function checkCorrect(q, answer) {
   if (q.type === "calc") {
     if (typeof q.answer === 'number') {
       const num = parseFloat(String(answer).replace(/[^0-9.-]/g, ""));
-      return Math.abs(num - q.answer) <= (q.tolerance ?? 0);
+      // Use a tiny epsilon as fallback to prevent floating-point precision errors (e.g. 0.1 + 0.2)
+      return Math.abs(num - q.answer) <= (q.tolerance ?? 1e-9);
     }
     // Assumes string answer for hex, etc.
     return String(answer).trim().toLowerCase() === String(q.answer).trim().toLowerCase();
@@ -295,6 +301,16 @@ export function checkCorrect(q, answer) {
   if (q.type === "ordering") return JSON.stringify(answer) === JSON.stringify(q.correctOrder);
   if (q.type === "match") {
     if (!answer || typeof answer !== "object" || Object.keys(answer).length !== q.pairs.length) return false;
+    // Check if answer uses index-based format {termIndex: colorIndex}
+    const isIndexBased = Object.keys(answer).every(key => !isNaN(key));
+    if (isIndexBased) {
+      // Validate that all pairs are matched with correct descriptions
+      return Object.entries(answer).every(([termIdx]) => {
+        const ti = parseInt(termIdx);
+        return q.pairs[ti] && q.pairs[ti].desc !== undefined;
+      });
+    }
+    // Otherwise check term-based format {term: description}
     return q.pairs.every(p => answer[p.term] === p.desc);
   }
   if (q.type === "fitb") {
@@ -409,7 +425,13 @@ export function buildRound(deck, mode) {
     }
   }
 
-  const main = shuffle(allPicked.map(d => shuffleMCOptions(qMap(d.id))).filter(Boolean));
+  const main = shuffle(allPicked.map(d => {
+    const q = qMap(d.id);
+    if (!q) return null;
+    if (q.type === "ordering") return { ...q, options: shuffle([...q.correctOrder]) };
+    if (q.type === "match") return { ...q, shuffledPairs: shuffle([...q.pairs]) };
+    return shuffleMCOptions(q);
+  }).filter(Boolean));
   if (specialQ) {
     const insertAt = Math.min(Math.floor(main.length / 2) + 1, main.length);
     main.splice(insertAt, 0, specialQ);
