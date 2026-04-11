@@ -2,6 +2,8 @@
 
 A research-backed quiz engine designed to turn question banks into effective study tools. Built on principles from *Make it Stick* and cognitive science research, this engine uses spaced repetition, confidence assessment, and strategic scheduling to maximize long-term retention and identify weak spots.
 
+**[→ Try the Live Demo](https://pio687.github.io/StudyEngine/)**
+
 ---
 
 ## Philosophy
