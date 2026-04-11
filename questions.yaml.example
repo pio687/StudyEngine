@@ -1,0 +1,63 @@
+# QUIZ CONFIGURATION
+# Copy this file to src/questions.yaml and fill in your content
+config:
+  STORAGE_KEY: "my_quiz_v1"        # Unique identifier for localStorage
+  DECK_VERSION: 1                  # Bump this when questions change significantly
+  QUIZ_EMOJI: "📚"
+  QUIZ_TITLE: "My Quiz Title"
+  QUIZ_SUBJECT: "Subject Area"
+  DESCRIPTION: |
+    A brief description of what this quiz covers. Shown on the question bank screen.
+
+  # Messages shown at session end (study mode)
+  SESSION_1_END: "Great work! Sleep well — consolidation happens tonight."
+  SESSION_2_END_WEAK: "You have {n} weak spots. Session 3 focuses on those."
+  SESSION_2_END_PERFECT: "Perfect session 2! No weak spots — you're ready."
+  SESSION_3_END: "Quiz complete! Well done."
+
+  # Win screen messages
+  WIN_EMOJI: "🎉"
+  WIN_PERFECT_TITLE: "Perfect Score!"
+  WIN_PERFECT_SUBTITLE: "Flawless mastery."
+  WIN_TITLE: "Quiz Complete"
+  WIN_SUBTITLE: "Excellent work!"
+
+# QUESTION BANK
+questions:
+
+  # --- TRUE / FALSE ---
+  # type: tf
+  # answer: true or false
+  - { id: "tf1", topic: "Topic Name", type: "tf", question: "Statement here?", answer: true, explanation: "Explanation here." }
+
+  # --- MULTIPLE CHOICE ---
+  # type: mc
+  # answer: zero-based index (0, 1, 2, 3)
+  # options are shuffled each round (except "All of the above")
+  - { id: "mc1", topic: "Topic Name", type: "mc", question: "Question here?", options: ["Option A", "Option B", "Option C", "Option D"], answer: 1, explanation: "Explanation here." }
+
+  # --- FILL IN THE BLANK ---
+  # type: fitb
+  # accepted: list of correct answers (case-insensitive, whitespace-normalized)
+  - { id: "fitb1", topic: "Topic Name", type: "fitb", question: "The answer is ___.", accepted: ["answer", "alternative form"], explanation: "Explanation here." }
+
+  # --- CALCULATION / SHORT ANSWER ---
+  # type: calc
+  # answer: number or string
+  # tolerance: optional, for float comparison (e.g., 0.01)
+  - { id: "calc1", topic: "Topic Name", type: "calc", question: "What is 2 + 2?", answer: 4, tolerance: 0, explanation: "Explanation here." }
+
+  # --- DEFINITION (appears as MC) ---
+  # type: def
+  # answer: zero-based index into options
+  - { id: "def1", topic: "Topic Name", type: "def", question: "Define: term", options: ["Correct definition", "Wrong option", "Another wrong"], answer: 0, explanation: "Explanation here." }
+
+  # --- ORDERING ---
+  # type: ordering
+  # correctOrder: list of strings in correct order
+  - { id: "order1", topic: "Topic Name", type: "ordering", question: "Put these in order:", correctOrder: ["First", "Second", "Third"], explanation: "Explanation here." }
+
+  # --- MATCHING ---
+  # type: match
+  # pairs: list of {term, desc} objects
+  - { id: "match1", topic: "Topic Name", type: "match", question: "Match the terms:", pairs: [{ term: "Term A", desc: "Description A" }, { term: "Term B", desc: "Description B" }], explanation: "Explanation here." }

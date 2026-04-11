@@ -5,28 +5,29 @@ import {
   SESSION_3_END,
   ALL_Q,
 } from "../engineLogic.js";
+import { getWrongAnswerDisplay } from "../utils/answerDisplay.js";
+import MasteryBars from "./MasteryBars.jsx";
+import shared from "./Shared.module.css";
+import styles from "./SessionEndScreen.module.css";
 
 export default function SessionEndScreen({
-  s,
   QUIZ_SUBJECT,
   QUIZ_TITLE,
-  renderMasteryBars,
   deck,
   setDeck,
   weakSpotIds,
-  getWrongAnswerDisplay,
   resetAll,
   continueToNextSession,
   setCurrentView,
-  T,
-  lm,
-  CV,
-  C,
   latestDeckRef,
   resumeRef,
   saveProgress,
   advanceSession,
   goToBank,
+  mode,
+  currentView,
+  totalCount,
+  masteredCount,
 }) {
   const sessionIdx = deck.sessionIndex; // 0 = just finished S1, 1 = just finished S2, 2 = just finished S3
   const isS2 = sessionIdx === 1;
@@ -36,46 +37,42 @@ export default function SessionEndScreen({
   // End of Session 2 with no weak spots → straight to win
   if (isS2 && !hasWeakSpots) {
     return (
-      <div style={s.app}>
-        <div style={s.wrap}>
-          <div style={s.logo}>
-            <div style={s.logoTop}>{QUIZ_SUBJECT}</div>
-            <div style={s.logoTitle}>{QUIZ_TITLE}</div>
+      <div className={shared.app}>
+        <div className={shared.wrap}>
+          <div className={shared.logo}>
+            <div className={shared.logoTop}>{QUIZ_SUBJECT}</div>
+            <div className={shared.logoTitle}>{QUIZ_TITLE}</div>
           </div>
-          {renderMasteryBars()}
-          <div style={s.card}>
+          <MasteryBars mode={mode} deck={deck} currentView={currentView} totalCount={totalCount} masteredCount={masteredCount} />
+          <div className={styles.card}>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🌟</div>
               <div
                 style={{
                   fontSize: 22,
                   fontWeight: 700,
-                  color: T.accent,
+                  color: "var(--accent)",
                   marginBottom: 8,
                 }}
               >
                 Perfect Prep.
               </div>
-              <div style={{ fontSize: 14, color: T.muted, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6 }}>
                 {SESSION_2_END_PERFECT}
               </div>
             </div>
             <button
-              style={{
-                ...s.btn(true, false),
-                width: "100%",
-                padding: "12px",
-                fontFamily: "monospace",
-              }}
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              style={{ width: "100%", padding: "12px" }}
               onClick={resetAll}
             >
               START OVER
             </button>
           </div>
-          <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:T.muted, fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
-            <span style={s.resetLink} onClick={() => setCurrentView("MENU")}>return to menu</span>
-            <span style={s.resetLink} onClick={goToBank}>question bank</span>
-            <span style={s.resetLink} onClick={resetAll}>reset progress</span>
+          <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:"var(--muted)", fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+            <span className={styles.resetLink} onClick={() => setCurrentView("MENU")}>🏠 menu</span>
+            <span className={styles.resetLink} onClick={goToBank}>📚 question bank</span>
+            <span className={styles.resetLink} onClick={resetAll}>🔄 reset</span>
           </div>
         </div>
       </div>
@@ -86,23 +83,22 @@ export default function SessionEndScreen({
   let message = SESSION_1_END;
   if (isS2 && hasWeakSpots)
     message = SESSION_2_END_WEAK.replace("{n}", weakSpotIds.length);
-  if (isS2 && !hasWeakSpots) message = SESSION_2_END_PERFECT; // fallback if guard above didn't catch it
   if (isS3) message = SESSION_3_END;
 
   const sessionPool = deck.sessionPools?.[String(sessionIdx + 1)] || [];
   const sessionWeakSpots = ALL_Q.filter(q => weakSpotIds.includes(q.id) && sessionPool.includes(q.id));
 
   return (
-    <div style={s.app}>
-      <div style={s.wrap}>
-        <div style={s.logo}>
-          <div style={s.logoTop}>{QUIZ_SUBJECT}</div>
-          <div style={s.logoTitle}>Session {sessionIdx + 1} Complete</div>
+    <div className={shared.app}>
+      <div className={shared.wrap}>
+        <div className={shared.logo}>
+          <div className={shared.logoTop}>{QUIZ_SUBJECT}</div>
+          <div className={shared.logoTitle}>Session {sessionIdx + 1} Complete</div>
           <div
             style={{
               fontSize: 11,
               fontFamily: "monospace",
-              color: T.muted,
+              color: "var(--muted)",
               marginTop: -6,
               marginBottom: 4,
             }}
@@ -110,8 +106,8 @@ export default function SessionEndScreen({
             Session {sessionIdx + 1} of 3
           </div>
         </div>
-        {renderMasteryBars()}
-        <div style={s.card}>
+        <MasteryBars mode={mode} deck={deck} currentView={currentView} totalCount={totalCount} masteredCount={masteredCount} />
+        <div className={styles.card}>
           {(() => {
             const st = sessionPool.length;
             const ss = isS3 ? st : st - sessionWeakSpots.length;
@@ -123,7 +119,7 @@ export default function SessionEndScreen({
                     width: 90,
                     height: 90,
                     borderRadius: "50%",
-                    border: `3px solid ${sp >= 70 ? T.accent : T.wrong}`,
+                    border: `3px solid ${sp >= 70 ? "var(--accent)" : "var(--wrong)"}`,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -135,7 +131,7 @@ export default function SessionEndScreen({
                     style={{
                       fontSize: 24,
                       fontWeight: 700,
-                      color: sp >= 70 ? T.accent : T.wrong,
+                      color: sp >= 70 ? "var(--accent)" : "var(--wrong)",
                     }}
                   >
                     {sp}%
@@ -143,7 +139,7 @@ export default function SessionEndScreen({
                   <div
                     style={{
                       fontSize: 10,
-                      color: T.muted,
+                      color: "var(--muted)",
                       fontFamily: "monospace",
                     }}
                   >
@@ -153,7 +149,7 @@ export default function SessionEndScreen({
                 <div
                   style={{
                     textAlign: "center",
-                    color: T.muted,
+                    color: "var(--muted)",
                     fontSize: 13,
                     marginBottom: 16,
                   }}
@@ -165,25 +161,25 @@ export default function SessionEndScreen({
           })()}
 
           {/* Sleep recommendation */}
-          <div style={{ background:T.yellowBg, border:`1px solid ${T.yellowBorder}`, borderRadius:8, padding:"14px 16px", marginBottom:16, fontSize:13, color:T.yellow, lineHeight:1.6, textAlign:"center" }}>
+          <div className={styles.sleepBox}>
             {message}
           </div>
 
           {/* Session Weak Spots Review */}
           {sessionWeakSpots.length > 0 && !isS3 && (
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.wrong, marginBottom: 10 }}>⚠ Review before you sleep</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--wrong)", marginBottom: 10 }}>⚠ Review before you sleep</div>
               {sessionWeakSpots.map((q, i) => {
                 const { ca } = getWrongAnswerDisplay(q, undefined);
                 const isHCW = deck.hcwIds?.includes(q.id);
                 return (
-                  <div key={q.id} style={{ ...s.wrongItem, borderColor:isHCW?"rgba(249,115,22,0.4)":undefined, background:isHCW?"rgba(249,115,22,0.04)":undefined, marginBottom:8 }}>
+                  <div key={q.id} className={styles.wrongItem} style={isHCW ? { borderColor:"rgba(249,115,22,0.4)", background:"rgba(249,115,22,0.04)" } : undefined}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4, gap:8 }}>
-                      <div style={{ fontSize:13, color:T.text, lineHeight:1.5, flex:1 }}><strong>#{i + 1} [{q.topic}]</strong> {q.question.split("\n")[0]}</div>
+                      <div style={{ fontSize:13, color:"var(--text)", lineHeight:1.5, flex:1 }}><strong>#{i + 1} [{q.topic}]</strong> {q.question.split("\n")[0]}</div>
                       {isHCW && <span style={{ fontSize:10, fontFamily:"monospace", color:"#f97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:4, padding:"1px 5px", flexShrink:0 }}>HCW</span>}
                     </div>
-                    <div style={{ fontSize:12, color:T.muted, marginBottom:4 }}>Correct answer: <span style={{ color:T.accent }}>{ca}</span></div>
-                    <div style={{ fontSize:12, color:T.yellow, lineHeight:1.5 }}>{q.explanation}</div>
+                    <div style={{ fontSize:12, color:"var(--muted)", marginBottom:4 }}>Correct answer: <span style={{ color:"var(--accent)" }}>{ca}</span></div>
+                    <div style={{ fontSize:12, color:"var(--yellow)", lineHeight:1.5 }}>{q.explanation}</div>
                   </div>
                 );
               })}
@@ -194,7 +190,8 @@ export default function SessionEndScreen({
           {!isS3 && (
             <div style={{ display: "flex", gap: 8 }}>
               <button
-                style={{ flex:2, padding:"12px", borderRadius:7, border:"none", background:lm?CV.btnBg:C.accent, color:lm?CV.btnText:"#0d1117", cursor:"pointer", fontSize:13, fontWeight:700, fontFamily:"monospace" }}
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                style={{ flex:2, padding:"12px" }}
                 onClick={() => {
                   const freshDeck = latestDeckRef.current || deck;
                   const advancedDeck = advanceSession(freshDeck);
@@ -208,7 +205,8 @@ export default function SessionEndScreen({
                 SEE YOU TOMORROW
               </button>
               <button
-                style={{ flex:1, padding:"12px", borderRadius:7, border:`1px solid ${T.border}`, background:"transparent", color:T.muted, cursor:"pointer", fontSize:12 }}
+                className={styles.btn}
+                style={{ flex:1, padding:"12px" }}
                 onClick={continueToNextSession}
               >
                 Continue now
@@ -223,7 +221,7 @@ export default function SessionEndScreen({
 
             return topics.length > 0 ? (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:T.text, marginBottom:10 }}>Topic Summary</div>
+                <div style={{ fontSize:13, fontWeight:700, color:"var(--text)", marginBottom:10 }}>Topic Summary</div>
                 {topics.map(topic => {
                   const s3 = s3Topics[topic] || { correct:0, total:0 };
                   const s1 = s1Topics[topic] || { correct:0, total:0 };
@@ -232,13 +230,13 @@ export default function SessionEndScreen({
                   const prevTotal = s1.total + s2.total;
                   const prevPct = prevTotal > 0 ? Math.round(((s1.correct+s2.correct)/prevTotal)*100) : null;
                   const stillWeak = s3pct !== null && s3pct < 70;
-                  const color = stillWeak ? "#f97316" : T.accent;
+                  const color = stillWeak ? "#f97316" : "var(--accent)";
                   const icon = stillWeak ? "⚠" : "✓";
                   return (
                     <div key={topic} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", borderRadius:7, border:`1px solid ${stillWeak?"rgba(249,115,22,0.3)":"rgba(63,185,80,0.2)"}`, background:stillWeak?"rgba(249,115,22,0.04)":"rgba(63,185,80,0.04)", marginBottom:6 }}>
-                      <div style={{ fontSize:13, color:T.text }}>{icon} {topic}</div>
+                      <div style={{ fontSize:13, color:"var(--text)" }}>{icon} {topic}</div>
                       <div style={{ fontSize:12, fontFamily:"monospace", color, display:"flex", gap:8, alignItems:"center" }}>
-                        {prevPct !== null && <span style={{ color:T.muted }}>{prevPct}% →</span>}
+                        {prevPct !== null && <span style={{ color:"var(--muted)" }}>{prevPct}% →</span>}
                         <span style={{ fontWeight:700 }}>{s3pct !== null ? `${s3pct}%` : "—"}</span>
                       </div>
                     </div>
@@ -248,13 +246,13 @@ export default function SessionEndScreen({
             ) : null;
           })()}
           {isS3 && (
-            <button style={{ ...s.btn(true,false), width:"100%", padding:"12px", fontFamily:"monospace" }} onClick={resetAll}>START OVER</button>
+            <button className={`${styles.btn} ${styles.btnPrimary}`} style={{ width:"100%", padding:"12px" }} onClick={resetAll}>START OVER</button>
           )}
         </div>
-        <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:T.muted, fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
-          <span style={s.resetLink} onClick={() => setCurrentView("MENU")}>return to menu</span>
-          <span style={s.resetLink} onClick={goToBank}>question bank</span>
-          <span style={s.resetLink} onClick={resetAll}>reset progress</span>
+        <div style={{ textAlign: "center", marginTop: 8, fontSize:11, color:"var(--muted)", fontFamily:"monospace", display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+          <span className={styles.resetLink} onClick={() => setCurrentView("MENU")}>return to menu</span>
+          <span className={styles.resetLink} onClick={goToBank}>question bank</span>
+          <span className={styles.resetLink} onClick={resetAll}>reset progress</span>
         </div>
       </div>
     </div>

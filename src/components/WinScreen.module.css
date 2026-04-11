@@ -1,0 +1,54 @@
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 22px 18px;
+  margin-bottom: 12px;
+}
+
+.resultItemWrong {
+  padding: 11px 13px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--wrong) 20%, transparent);
+  background: color-mix(in srgb, var(--wrong) 4%, transparent);
+  margin-bottom: 8px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+
+.btnPrimary {
+  border: none;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.resetLink {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: monospace;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 16px 14px 14px;
+  }
+  .btn {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+}

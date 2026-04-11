@@ -1,12 +1,12 @@
 import { MATCH_COLORS, LIGHT_MATCH_COLORS } from "../../engineLogic.js";
 
-export default function MatchingQuestion({ q, matchState, setMatchState, setAnswers, lm, T }) {
+export default function MatchingQuestion({ q, matchState, setMatchState, setAnswers, lm }) {
   const pairs = q.shuffledPairs || q.pairs;
   const { selectedTerm, selectedDesc, matched, wrong, feedback: mFeedback } = matchState;
   const matchCount = Object.keys(matched).length;
   const activeMatchColors = lm ? LIGHT_MATCH_COLORS : MATCH_COLORS;
   const SEL_STYLE = { background: "rgba(239,159,39,0.15)", borderColor: "#EF9F27", color: lm ? "#3d2600" : "#fbbf24", borderWidth: 1.5 };
-  const WRONG_STYLE = { background: "rgba(248,81,73,0.08)", borderColor: T.wrong, color: T.wrong };
+  const WRONG_STYLE = { background: "rgba(248,81,73,0.08)", borderColor: "var(--wrong)", color: "var(--wrong)" };
 
   function getMatchedColorIdx(termIdx) { return matched[termIdx] !== undefined ? matched[termIdx] : null; }
   function getDescMatchedColorIdx(descIdx) {
@@ -54,14 +54,14 @@ export default function MatchingQuestion({ q, matchState, setMatchState, setAnsw
     }
   }
 
-  const matchBase = { padding: "10px 13px", borderRadius: 8, border: `1px solid ${T.border}`, background: "transparent", color: T.text, cursor: "pointer", fontSize: 13, lineHeight: 1.5, textAlign: "left", transition: "all 0.12s", width: "100%", boxSizing: "border-box", minHeight: 42, display: "flex", alignItems: "center" };
+  const matchBase = { padding: "10px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text)", cursor: "pointer", fontSize: 13, lineHeight: 1.5, textAlign: "left", transition: "all 0.12s", width: "100%", boxSizing: "border-box", minHeight: 42, display: "flex", alignItems: "center" };
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: T.muted, fontFamily: "monospace", marginBottom: 10 }}>{matchCount} / {q.pairs.length} matched</div>
+      <div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace", marginBottom: 10 }}>{matchCount} / {q.pairs.length} matched</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 10, color: T.muted, fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Term</div>
+          <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Term</div>
           {q.pairs.map((p, i) => {
             const cIdx = getMatchedColorIdx(i);
             const c = cIdx !== null ? activeMatchColors[cIdx % activeMatchColors.length] : null;
@@ -70,7 +70,7 @@ export default function MatchingQuestion({ q, matchState, setMatchState, setAnsw
           })}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 10, color: T.muted, fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Description</div>
+          <div style={{ fontSize: 10, color: "var(--muted)", fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Description</div>
           {pairs.map((p, descIdx) => {
             const cIdx = getDescMatchedColorIdx(descIdx);
             const c = cIdx !== null ? activeMatchColors[cIdx % activeMatchColors.length] : null;
@@ -79,8 +79,8 @@ export default function MatchingQuestion({ q, matchState, setMatchState, setAnsw
           })}
         </div>
       </div>
-      {mFeedback && <div style={{ textAlign: "center", marginTop: 10, fontSize: 13, color: T.wrong }}>{mFeedback}</div>}
-      {matchCount === q.pairs.length && <div style={{ textAlign: "center", marginTop: 10, fontSize: 13, color: T.accent, fontFamily: "monospace" }}>All matched!</div>}
+      {mFeedback && <div style={{ textAlign: "center", marginTop: 10, fontSize: 13, color: "var(--wrong)" }}>{mFeedback}</div>}
+      {matchCount === q.pairs.length && <div style={{ textAlign: "center", marginTop: 10, fontSize: 13, color: "var(--accent)", fontFamily: "monospace" }}>All matched!</div>}
     </div>
   );
 }

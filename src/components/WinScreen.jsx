@@ -5,26 +5,31 @@ import {
   WIN_TITLE,
   WIN_SUBTITLE,
 } from "../engineLogic.js";
+import { getAnswerDisplay } from "../utils/answerDisplay.js";
+import MasteryBars from "./MasteryBars.jsx";
+import shared from "./Shared.module.css";
+import styles from "./WinScreen.module.css";
 
 export default function WinScreen({
-  s,
   QUIZ_SUBJECT,
-  renderMasteryBars,
-  T,
   isPerfect,
   missedQs,
-  getAnswerDisplay,
   resetAll,
   goToBank,
+  mode,
+  deck,
+  currentView,
+  totalCount,
+  masteredCount,
 }) {
   return (
-    <div style={s.app}>
-      <div style={s.wrap}>
-        <div style={s.logo}>
-          <div style={s.logoTop}>{QUIZ_SUBJECT}</div>
+    <div className={shared.app}>
+      <div className={shared.wrap}>
+        <div className={shared.logo}>
+          <div className={shared.logoTop}>{QUIZ_SUBJECT}</div>
         </div>
-        {renderMasteryBars()}
-        <div style={s.card}>
+        <MasteryBars mode={mode} deck={deck} currentView={currentView} totalCount={totalCount} masteredCount={masteredCount} />
+        <div className={styles.card}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>
               {isPerfect ? WIN_EMOJI : "🎉"}
@@ -35,13 +40,13 @@ export default function WinScreen({
                   style={{
                     fontSize: 22,
                     fontWeight: 700,
-                    color: T.accent,
+                    color: "var(--accent)",
                     marginBottom: 8,
                   }}
                 >
                   {WIN_PERFECT_TITLE}
                 </div>
-                <div style={{ fontSize: 14, color: T.muted }}>
+                <div style={{ fontSize: 14, color: "var(--muted)" }}>
                   {WIN_PERFECT_SUBTITLE}
                 </div>
               </>
@@ -51,13 +56,13 @@ export default function WinScreen({
                   style={{
                     fontSize: 22,
                     fontWeight: 700,
-                    color: T.accent,
+                    color: "var(--accent)",
                     marginBottom: 8,
                   }}
                 >
                   {WIN_TITLE}
                 </div>
-                <div style={{ fontSize: 14, color: T.muted }}>
+                <div style={{ fontSize: 14, color: "var(--muted)" }}>
                   {WIN_SUBTITLE}
                 </div>
               </>
@@ -69,7 +74,7 @@ export default function WinScreen({
               return (
                 <div
                   key={q.id}
-                  style={{ ...s.resultItem(false), marginBottom: 8 }}
+                  className={styles.resultItemWrong}
                 >
                   <div
                     style={{
@@ -82,7 +87,7 @@ export default function WinScreen({
                     <div
                       style={{
                         fontSize: 13,
-                        color: T.text,
+                        color: "var(--text)",
                         lineHeight: 1.5,
                         flex: 1,
                       }}
@@ -93,32 +98,33 @@ export default function WinScreen({
                       style={{
                         fontSize: 10,
                         fontFamily: "monospace",
-                        color: T.wrong,
+                        color: "var(--wrong)",
                         flexShrink: 0,
                       }}
                     >
                       missed {count}x
                     </div>
                   </div>
-                  <div style={{ fontSize: 12, color: T.accent, marginBottom: 4 }}>
+                  <div style={{ fontSize: 12, color: "var(--accent)", marginBottom: 4 }}>
                     ✓ {ca}
                   </div>
-                  <div style={{ fontSize: 12, color: T.yellow, lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: "var(--yellow)", lineHeight: 1.5 }}>
                     {q.explanation}
                   </div>
                 </div>
               );
             })}
           <button
-            style={{ ...s.btn(true, false), width: "100%", padding: "12px", fontFamily: "monospace" }}
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            style={{ width: "100%", padding: "12px" }}
             onClick={resetAll}
           >
             START OVER
           </button>
         </div>
         <div style={{ textAlign: "center", marginTop: 8 }}>
-          <span style={s.resetLink} onClick={goToBank}>
-            question bank
+          <span className={styles.resetLink} onClick={goToBank}>
+            📚 question bank
           </span>
         </div>
       </div>

@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 import {
   STORAGE_KEY,
-  ALL_Q,
-  loadProgress, saveProgress, initDeck, buildSessionPools, advanceSession, isAllMastered,
-  computeTopicResults, checkCorrect, buildRound, applyResults
+  loadProgress, saveProgress, saveInFlight, loadInFlight, clearInFlight,
+  initDeck, buildSessionPools, advanceSession, isAllMastered,
+  computeTopicResults, checkCorrect, buildRound, applyResults, getQById,
 } from "../../engineLogic.js";
 
 export function useQuizEngine() {
@@ -17,10 +17,10 @@ export function useQuizEngine() {
   const [orderSelected, setOrderSelected] = useState([]);
   const [matchState, setMatchState] = useState({ selectedTerm:null, selectedDesc:null, matched:{}, wrong:{ term:null, desc:null }, feedback:"" });
   const [confidence, setConfidence] = useState({});
-  const [switchModeConfirm, setSwitchModeConfirm] = useState(false);
   const [mode, setMode] = useState(null);
   const [currentView, setCurrentView] = useState("LOADING");
   const [previousView, setPreviousView] = useState("MENU");
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const latestDeckRef = useRef(null);
   const resumeRef = useRef(false);
@@ -38,28 +38,54 @@ export function useQuizEngine() {
   }, []);
 
   const resetAll = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("quiz_mode");
+    localStorage.removeItem(`${STORAGE_KEY}_${mode}`);
+    clearInFlight();
     const fresh = initDeck(null);
     saveProgress(fresh);
     latestDeckRef.current = fresh;
     setDeck(fresh);
     setQuestions([]);
     resetRoundState();
-    setMode(null);
+    setConfirmReset(false);
     setCurrentView("MENU");
-  }, [resetRoundState]);
+  }, [resetRoundState, mode]);
 
   useEffect(() => {
     const savedDeck = initDeck(loadProgress());
     if (savedDeck.sessionPools && savedDeck.sessionIndex < 3) {
       resumeRef.current = true;
     }
+    latestDeckRef.current = savedDeck;
     setDeck(savedDeck);
+
+    // Resume an in-flight round if one exists and its questions are still valid
+    const inFlight = loadInFlight();
+    if (inFlight?.questions?.length > 0 && inFlight.mode) {
+      const validQs = inFlight.questions.filter(q => getQById(q.id));
+      if (validQs.length > 0) {
+        setQuestions(validQs);
+        setAnswers(inFlight.answers || {});
+        setCurrent(Math.min(inFlight.current || 0, validQs.length - 1));
+        setConfidence(inFlight.confidence || {});
+        setMode(inFlight.mode);
+        resumeRef.current = false;
+        setCurrentView("QUIZ");
+        return;
+      }
+    }
+
     setCurrentView("MENU");
   }, []);
 
+  // Save minimal deck state whenever deck changes
   useEffect(() => { if (deck) saveProgress(deck); }, [deck]);
+
+  // Save in-flight round state whenever the user makes progress mid-round
+  useEffect(() => {
+    if (currentView === "QUIZ" && questions.length > 0 && mode) {
+      saveInFlight({ mode, questions, answers, current, confidence });
+    }
+  }, [answers, current, currentView, questions, mode, confidence]);
 
   const q  = questions[current];
 
@@ -167,6 +193,7 @@ export function useQuizEngine() {
     };
     setDeck(newDeck);
     setAnswers(finalAnswers);
+    clearInFlight();
 
     if (isAllMastered(newDeck, mode)) {
       setCurrentView("WIN");
@@ -197,11 +224,12 @@ export function useQuizEngine() {
       if (mode === "study") { setCurrentView("SESSION_END"); return; }
       resetAll(); return;
     }
+    clearInFlight();
     setQuestions(nextQs);
     resetRoundState();
     setCurrentView("QUIZ");
   }
-  
+
   function selectMode(m) {
     try { localStorage.setItem("quiz_mode", m); } catch {}
     setMode(m);
@@ -209,13 +237,39 @@ export function useQuizEngine() {
     let deckForRound = deck;
 
     if (m === 'study') {
-      if (resumeRef.current) {
+      const activeDeck = latestDeckRef.current || deck;
+      // Resume if there's any existing study progress (mastered, answered, or rounds completed)
+      const hasProgress = activeDeck && activeDeck.sessionPools &&
+        (activeDeck.masteredIds?.length > 0 || activeDeck.correctOnceIds?.length > 0 || activeDeck.roundIndex > 0);
+
+      if (resumeRef.current || hasProgress) {
         resumeRef.current = false;
-        deckForRound = latestDeckRef.current || deck;
+        deckForRound = activeDeck;
       } else {
         const freshDeck = initDeck(null);
         freshDeck.sessionPools = buildSessionPools();
         deckForRound = freshDeck;
+      }
+    } else if (m === 'practice') {
+      const saved = loadProgress('practice');
+      deckForRound = initDeck(saved);
+    }
+
+    // Ensure deck.mode matches the selected mode for correct localStorage key
+    deckForRound.mode = m;
+
+    // Resume an in-flight round for this mode if one exists (handles "← menu" then back)
+    const inFlight = loadInFlight();
+    if (inFlight?.mode === m && inFlight?.questions?.length > 0) {
+      const validQs = inFlight.questions.filter(q => getQById(q.id));
+      if (validQs.length > 0) {
+        setDeck(deckForRound);
+        setQuestions(validQs);
+        setAnswers(inFlight.answers || {});
+        setCurrent(Math.min(inFlight.current || 0, validQs.length - 1));
+        setConfidence(inFlight.confidence || {});
+        setCurrentView("QUIZ");
+        return;
       }
     }
 
@@ -254,7 +308,7 @@ export function useQuizEngine() {
   return {
     deck, setDeck, questions, setQuestions, current, setCurrent, answers, setAnswers, calcInput, setCalcInput,
     fitbInput, setFitbInput, orderSelected, setOrderSelected, matchState, setMatchState, confidence, setConfidence,
-    switchModeConfirm, setSwitchModeConfirm, mode, setMode, currentView, setCurrentView, latestDeckRef, resumeRef,
+    mode, setMode, currentView, setCurrentView, confirmReset, setConfirmReset, latestDeckRef, resumeRef,
     sessionScoreRef, q, ua, total, allMastered, sessionComplete, score, pct, wrongQs,
     resetAll, goToBank, leaveBank, select, handleCalc, handleFitb, pickOrdering, clearOrdering, handleSubmit,
     startNext, selectMode, continueToNextSession,

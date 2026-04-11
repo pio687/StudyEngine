@@ -1,26 +1,27 @@
 import { useState } from "react";
+import { getAnswerDisplay, getWrongAnswerDisplay } from "../utils/answerDisplay.js";
+import MasteryBars from "./MasteryBars.jsx";
+import shared from "./Shared.module.css";
+import styles from "./ResultsScreen.module.css";
 
 export default function ResultsScreen({
-  s,
   QUIZ_SUBJECT,
-  renderMasteryBars,
   pct,
   score,
   total,
-  T,
   questions,
   answers,
   checkCorrect,
-  getAnswerDisplay,
   confidence,
   wrongQs,
-  getWrongAnswerDisplay,
   startNext,
   resetAll,
   goToBank,
-  lm,
-  CV,
-  C,
+  mode,
+  deck,
+  currentView,
+  totalCount,
+  masteredCount,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -40,20 +41,20 @@ export default function ResultsScreen({
   }
 
   return (
-    <div style={s.app}>
-      <div style={s.wrap}>
-        <div style={s.logo}>
-          <div style={s.logoTop}>{QUIZ_SUBJECT}</div>
-          <div style={s.logoTitle}>Results</div>
+    <div className={shared.app}>
+      <div className={shared.wrap}>
+        <div className={shared.logo}>
+          <div className={shared.logoTop}>{QUIZ_SUBJECT}</div>
+          <div className={shared.logoTitle}>Results</div>
         </div>
-        {renderMasteryBars()}
-        <div style={s.card}>
+        <MasteryBars mode={mode} deck={deck} currentView={currentView} totalCount={totalCount} masteredCount={masteredCount} />
+        <div className={styles.card}>
           <div
             style={{
               width: 90,
               height: 90,
               borderRadius: "50%",
-              border: `3px solid ${pct >= 70 ? T.accent : T.wrong}`,
+              border: `3px solid ${pct >= 70 ? "var(--accent)" : "var(--wrong)"}`,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
@@ -65,7 +66,7 @@ export default function ResultsScreen({
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: pct >= 70 ? T.accent : T.wrong,
+                color: pct >= 70 ? "var(--accent)" : "var(--wrong)",
               }}
             >
               {pct}%
@@ -73,7 +74,7 @@ export default function ResultsScreen({
             <div
               style={{
                 fontSize: 10,
-                color: T.muted,
+                color: "var(--muted)",
                 fontFamily: "monospace",
               }}
             >
@@ -83,7 +84,7 @@ export default function ResultsScreen({
           <div
             style={{
               textAlign: "center",
-              color: T.muted,
+              color: "var(--muted)",
               fontSize: 13,
               marginBottom: 16,
             }}
@@ -101,7 +102,7 @@ export default function ResultsScreen({
             const { ua, ca } = getAnswerDisplay(q, answers[q.id]);
             const isHCW = !cor && confidence[q.id] === "know";
             return (
-              <div key={q.id} style={s.resultItem(cor)}>
+              <div key={q.id} className={cor ? styles.resultItemCorrect : styles.resultItemWrong}>
                 <div
                   style={{
                     display: "flex",
@@ -113,7 +114,7 @@ export default function ResultsScreen({
                   <div
                     style={{
                       fontSize: 13,
-                      color: T.text,
+                      color: "var(--text)",
                       lineHeight: 1.5,
                       flex: 1,
                     }}
@@ -147,7 +148,7 @@ export default function ResultsScreen({
                       style={{
                         fontSize: 10,
                         fontFamily: "monospace",
-                        color: cor ? T.accent : T.wrong,
+                        color: cor ? "var(--accent)" : "var(--wrong)",
                         fontWeight: 700,
                       }}
                     >
@@ -159,12 +160,12 @@ export default function ResultsScreen({
                   <div
                     style={{
                       fontSize: 12,
-                      color: T.muted,
+                      color: "var(--muted)",
                       marginBottom: 2,
                     }}
                   >
-                    Your answer: <span style={{ color: T.wrong }}>{ua}</span> ·
-                    Correct: <span style={{ color: T.accent }}>{ca}</span>
+                    Your answer: <span style={{ color: "var(--wrong)" }}>{ua}</span> ·
+                    Correct: <span style={{ color: "var(--accent)" }}>{ca}</span>
                   </div>
                 )}
                 {isHCW && (
@@ -182,7 +183,7 @@ export default function ResultsScreen({
                 <div
                   style={{
                     fontSize: 12,
-                    color: T.yellow,
+                    color: "var(--yellow)",
                     lineHeight: 1.5,
                     marginTop: 5,
                     paddingTop: 5,
@@ -196,23 +197,23 @@ export default function ResultsScreen({
           })}
           
           {wrongQs.length > 0 && (
-            <div style={{ marginTop:16, paddingTop:14, borderTop:`1px solid ${T.border}` }}>
+            <div style={{ marginTop:16, paddingTop:14, borderTop:`1px solid var(--border)` }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:T.wrong }}>⚠ {wrongQs.length} wrong</div>
-                <button onClick={copyWrong} style={{ padding:"5px 12px", borderRadius:6, border:`1px solid ${T.border}`, background:copied?"#238636":"transparent", color:copied?T.text:T.muted, cursor:"pointer", fontSize:12, fontFamily:"monospace" }}>{copied?"✓ Copied!":"Copy all"}</button>
+                <div style={{ fontSize:13, fontWeight:700, color:"var(--wrong)" }}>⚠ {wrongQs.length} wrong</div>
+                <button onClick={copyWrong} style={{ padding:"5px 12px", borderRadius:6, border:`1px solid var(--border)`, background:copied?"#238636":"transparent", color:copied?"var(--text)":"var(--muted)", cursor:"pointer", fontSize:12, fontFamily:"monospace" }}>{copied?"✓ Copied!":"Copy all"}</button>
               </div>
               {wrongQs.map((q,i) => {
                 const { ua, ca } = getWrongAnswerDisplay(q, answers[q.id]);
                 const isHCW = confidence[q.id] === "know";
                 return (
-                  <div key={q.id} style={{ ...s.wrongItem, borderColor:isHCW?"rgba(249,115,22,0.4)":undefined, background:isHCW?"rgba(249,115,22,0.04)":undefined }}>
+                  <div key={q.id} className={styles.wrongItem} style={{ borderColor:isHCW?"rgba(249,115,22,0.4)":undefined, background:isHCW?"rgba(249,115,22,0.04)":undefined }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:4, gap:8 }}>
-                      <div style={{ fontSize:13, color:T.text, lineHeight:1.5, flex:1 }}><strong>#{i+1} [{q.topic}]</strong> {q.question.split("\n")[0]}</div>
+                      <div style={{ fontSize:13, color:"var(--text)", lineHeight:1.5, flex:1 }}><strong>#{i+1} [{q.topic}]</strong> {q.question.split("\n")[0]}</div>
                       {isHCW && <span style={{ fontSize:10, fontFamily:"monospace", color:"#f97316", background:"rgba(249,115,22,0.1)", border:"1px solid rgba(249,115,22,0.3)", borderRadius:4, padding:"1px 5px", flexShrink:0 }}>HCW</span>}
                     </div>
-                    <div style={{ fontSize:12, color:T.muted, marginBottom:2 }}>Your answer: <span style={{ color:T.wrong }}>{ua}</span></div>
-                    <div style={{ fontSize:12, color:T.muted, marginBottom:2 }}>Correct: <span style={{ color:T.accent }}>{ca}</span></div>
-                    <div style={{ fontSize:12, color:T.yellow, lineHeight:1.5, marginTop:5, paddingTop:5, borderTop:"1px solid rgba(255,255,255,0.06)" }}>{q.explanation}</div>
+                    <div style={{ fontSize:12, color:"var(--muted)", marginBottom:2 }}>Your answer: <span style={{ color:"var(--wrong)" }}>{ua}</span></div>
+                    <div style={{ fontSize:12, color:"var(--muted)", marginBottom:2 }}>Correct: <span style={{ color:"var(--accent)" }}>{ca}</span></div>
+                    <div style={{ fontSize:12, color:"var(--yellow)", lineHeight:1.5, marginTop:5, paddingTop:5, borderTop:"1px solid rgba(255,255,255,0.06)" }}>{q.explanation}</div>
                   </div>
                 );
               })}
@@ -226,8 +227,8 @@ export default function ResultsScreen({
                 padding: "10px",
                 borderRadius: 7,
                 border: "none",
-                background: lm ? CV.btnBg : C.accent,
-                color: lm ? CV.btnText : "#0d1117",
+                background: "var(--btn-bg)",
+                color: "var(--btn-text)",
                 cursor: "pointer",
                 fontSize: 13,
                 fontWeight: 700,
@@ -240,12 +241,12 @@ export default function ResultsScreen({
           </div>
         </div>
         <div style={{ textAlign: "center", marginTop: 8 }}>
-          <span style={s.resetLink} onClick={resetAll}>
-            reset all progress
+          <span className={styles.resetLink} onClick={resetAll}>
+            🔄 reset
           </span>
           {" · "}
-          <span style={s.resetLink} onClick={goToBank}>
-            question bank
+          <span className={styles.resetLink} onClick={goToBank}>
+            📚 bank
           </span>
         </div>
       </div>

@@ -1,0 +1,91 @@
+.tfRow {
+  display: flex;
+  gap: 8px;
+}
+
+.tfBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  transition: all 0.12s;
+}
+
+.tfBtnSelected {
+  border-color: var(--neutral);
+  background: color-mix(in srgb, var(--neutral) 10%, transparent);
+  color: var(--neutral);
+}
+
+.opts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.opt {
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  transition: all 0.12s;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.optSelected {
+  border-color: var(--neutral);
+  background: color-mix(in srgb, var(--neutral) 7%, transparent);
+  color: var(--neutral);
+}
+
+.dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--muted);
+  background: transparent;
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: #000;
+}
+
+.dotSelected {
+  border-color: var(--neutral);
+  background: var(--neutral);
+}
+
+@media (max-width: 480px) {
+  .tfBtn {
+    padding: 16px;
+    font-size: 17px;
+  }
+  .opts {
+    gap: 10px;
+  }
+  .opt {
+    padding: 14px;
+    font-size: 16px;
+  }
+  .dot {
+    width: 16px;
+    height: 16px;
+  }
+}
